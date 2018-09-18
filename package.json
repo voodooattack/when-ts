@@ -1,0 +1,82 @@
+{
+  "name": "when-ts",
+  "version": "1.0.0-alpha.1",
+  "description": "When: A software design pattern for building event-based recombinant state machines.",
+  "main": "dist/lib/index.js",
+  "types": "dist/types/index.d.ts",
+  "scripts": {
+    "lint": "tslint --project tsconfig.json -t codeFrame 'src/**/*.ts' 'test/**/*.ts'",
+    "clean": "rimraf dist/",
+    "prebuild": "npm run clean && npm run lint",
+    "build": "tsc",
+    "typedoc": "typedoc --out docs --target es6 --theme minimal --mode file src",
+    "prepublish": "npm run build && npm run typedoc && npm run test",
+    "test": "jest --coverage",
+    "test:coveralls": "cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"
+  },
+  "engines": {
+    "node": ">=8.12.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^23.1.6",
+    "@types/node": "^10.5.2",
+    "coveralls": "^3.0.2",
+    "jest": "^23.4.1",
+    "reflect-metadata": "^0.1.12",
+    "rimraf": "^2.6.2",
+    "ts-jest": "^23.0.0",
+    "ts-node": "^7.0.0",
+    "tslint": "^5.10.0",
+    "tslint-config-prettier": "^1.13.0",
+    "tslint-config-standard": "^8.0.1",
+    "typedoc": "^0.12.0",
+    "typescript": "^3.0.3"
+  },
+  "peerDependencies": {
+    "reflect-metadata": "^0.1.12"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/voodooattack/when-ts.git"
+  },
+  "homepage": "https://github.com/voodooattack/when-ts#readme",
+  "author": "Abdullah Ali <voodooattack@hotmail.com>",
+  "license": "MIT",
+  "jest": {
+    "transform": {
+      ".(ts|tsx)": "ts-jest"
+    },
+    "testRegex": "(/__tests__/.*|\\.(test|spec))\\.(ts|tsx|js)$",
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js"
+    ],
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/tests/"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 75,
+        "functions": 85,
+        "lines": 85,
+        "statements": 85
+      }
+    },
+    "collectCoverage": true
+  },
+  "keywords": [
+    "state",
+    "abstract",
+    "design-pattern",
+    "state-machine",
+    "typescript",
+    "decorator",
+    "event-based",
+    "gene",
+    "dna",
+    "recombination",
+    "immutable"
+  ]
+}
