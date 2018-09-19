@@ -9,7 +9,7 @@
 
 ### Introduction
 
-This is a reference implementation for a new software design pattern that allows for composable even-based state machines with complete (including temporal) control over their state.
+This is a reference implementation for a new software design pattern that allows for composable event-based state machines with complete (including temporal) control over their state.
 
 Please note that this spec and reference implementation are still in alpha and the specs are not yet final. 
 
