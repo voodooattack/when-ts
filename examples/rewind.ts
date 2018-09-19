@@ -1,4 +1,4 @@
-import { StateMachine, when } from 'when-ts';
+import { StateMachine, when } from '../src';
 
 type State = { // the state of our program
   value: number; // a counter that will be incremented once per tick

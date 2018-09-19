@@ -23,7 +23,7 @@ describe('StateMachine', () => {
       }
 
       @when(state => state.value >= 5)
-      exitWhenDone(s: State, m: TestMachine) {
+      exitWhenDone(_: State, m: TestMachine) {
         expect(m.history.tick).toEqual(6);
         m.exit();
       }
@@ -123,7 +123,7 @@ describe('StateMachine', () => {
       }
 
       @when(state => state.value >= 5)
-      exitWhenDone(s: State, m: TestMachine) {
+      exitWhenDone(_: State, m: TestMachine) {
         // never do this in reality, never reference anything other than the state!
         if (rewinds++ > 100)
           m.exit({ value: null });
@@ -160,7 +160,7 @@ describe('StateMachine', () => {
       }
 
       @when(state => state.value >= 3)
-      exitWhenDone(s: State, m: TestMachine) {
+      exitWhenDone(_: State, m: TestMachine) {
         // never do this in reality, never reference anything other than the state!
         if (++rewinds > 2)
         {
@@ -203,8 +203,8 @@ describe('StateMachine', () => {
     while (m.history.tick < 5) {
       expect(m.history.records.length).toBeLessThanOrEqual(historyLength);
       const expected: State[] = [];
-      let i = Math.min(m.history.limit, m.history.tick),
-        v = Math.max(m.history.tick - m.history.limit, 0);
+      let i = Math.min(m.history.limit, m.history.tick);
+      let v = Math.max(m.history.tick - m.history.limit, 0);
       while(i-- > 0) {
         expected.push({ value: v++ });
       }
@@ -231,7 +231,7 @@ describe('StateMachine', () => {
         return { value: s.value + 1 };
       }
       @when((_, m) => m.history.tick >= 5)
-      exitOnTick(s: State, m: TestMachine) {
+      exitOnTick(_: State, m: TestMachine) {
         m.exit();
       }
 
@@ -267,7 +267,7 @@ describe('StateMachine', () => {
         return { count: s.count + s.inc };
       }
       @when(s => s.count >= s.to)
-      exitOnEqual(s: State, m: TestMachine) {
+      exitOnEqual(_: State, m: TestMachine) {
         m.exit();
       }
     }

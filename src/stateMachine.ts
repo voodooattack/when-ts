@@ -28,7 +28,7 @@ export class StateMachine<S extends MachineState> {
    * @type {Map}
    * @private
    */
-  private _program: Map<ActivationCond<S>, ActivationAction<S>> = new Map();
+  private _program: Map<ActivationCond<S>, ActivationAction<S, any>> = new Map();
   /**
    *
    * @type {HistoryManager<S extends MachineState>}

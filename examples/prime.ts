@@ -1,4 +1,4 @@
-import { StateMachine, when, MachineState } from 'when-ts';
+import { StateMachine, when, MachineState } from '../src';
 
 interface PrimeState extends MachineState {
   counter: number;
@@ -17,12 +17,12 @@ class PrimeMachine extends StateMachine<PrimeState> {
   }
 
   @when(state => state.counter < state.current && state.current % state.counter === 0)
-  resetNotPrime({ counter, primes, current }: PrimeState) {
+  resetNotPrime({ current }: PrimeState) {
     return { counter: 2, current: current + 1 };
   }
 
   @when(state => state.counter >= state.current)
-  capturePrime({ counter, primes, current }: PrimeState) {
+  capturePrime({ primes, current }: PrimeState) {
     return { counter: 2, current: current + 1, primes: [...primes, current] };
   }
 

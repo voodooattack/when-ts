@@ -13,10 +13,10 @@ export type ActivationCond<State extends MachineState> =
 
 /**
  * An activation action, takes two arguments and will only be executed during a tick
- *  when the associated conditon returns true.
+ *  when the associated condition returns true.
  */
-export type ActivationAction<State extends MachineState> =
-  (state: Readonly<State>, machine: StateMachine<State>) => Partial<State> | undefined;
+export type ActivationAction<State extends MachineState, fields extends keyof State> =
+  (state: Readonly<State>, machine: StateMachine<State>) => Pick<State, fields> | undefined;
 
 
 /**

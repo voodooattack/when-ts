@@ -1,5 +1,4 @@
 import 'reflect-metadata';
-import { StateMachine } from './stateMachine';
 
 import { ActivationCond, MachineState } from './interfaces';
 import { programMetadataKey } from './programMetadataKey';
@@ -14,7 +13,7 @@ export * from './interfaces';
 export function when<S extends MachineState = any>(cond: ActivationCond<S> | boolean): MethodDecorator {
   // convenience shortcut for `@when(true)`
   cond = cond === true ? () => true : cond;
-  return function <T>(type: T, _methodName: string | symbol, descriptor: PropertyDescriptor) {
+  return function (_, _methodName: string | symbol, descriptor: PropertyDescriptor) {
     Reflect.defineMetadata(programMetadataKey, cond, descriptor.value);
     return descriptor;
   };

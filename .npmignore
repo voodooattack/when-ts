@@ -1,6 +1,7 @@
 src/
 tests/**.ts
-dist/lib/tests/**.*
+dist/lib/examples/
+dist/types/examples/
 node_modules
 *.log
 npm-debug.log*

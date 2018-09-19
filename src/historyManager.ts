@@ -1,4 +1,3 @@
-import { type } from 'os';
 import { MachineState } from './index';
 import { IHistory } from './interfaces';
 
@@ -64,7 +63,7 @@ export class HistoryManager<S extends MachineState> implements IHistory<S> {
 
     if (mutate) {
       this._records[this._records.length - 1] = Object.assign(Object.create(null),
-        this.currentState, mutate);
+        this.currentState, mutate) as S;
     }
 
     this._resetTick();

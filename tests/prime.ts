@@ -19,12 +19,12 @@ describe('Recombination', () => {
       }
 
       @when(state => state.counter < state.current && state.current % state.counter === 0)
-      resetNotPrime({ counter, primes, current }: PrimeState) {
+      resetNotPrime({ current }: PrimeState) {
         return { counter: 2, current: current + 1 };
       }
 
       @when(state => state.counter >= state.current)
-      capturePrime({ counter, primes, current }: PrimeState) {
+      capturePrime({ primes, current }: PrimeState) {
         return { counter: 2, current: current + 1, primes: [...primes, current] };
       }
 
