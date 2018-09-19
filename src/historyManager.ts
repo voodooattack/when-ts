@@ -1,4 +1,3 @@
-import { type } from 'os';
 import { MachineState } from './index';
 import { IHistory } from './interfaces';
 
