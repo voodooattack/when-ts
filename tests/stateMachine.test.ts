@@ -1,10 +1,6 @@
-import { StateMachine, when } from '../src';
+import { input, StateMachine, when } from '../src';
 
 describe('StateMachine', () => {
-
-  it('StateMachine is instantiable', () => {
-    expect(new StateMachine({})).toBeInstanceOf(StateMachine);
-  });
 
   it('Can handle a basic state machine', () => {
 
@@ -17,16 +13,17 @@ describe('StateMachine', () => {
         super({ value: 0 });
       }
 
-      @when(state => state.value < 5)
-      incrementOncePerTick(s: State) {
-        return { value: s.value + 1 };
-      }
-
-      @when(state => state.value >= 5)
+      @when<State>(state => state.value >= 5)
       exitWhenDone(_: State, m: TestMachine) {
         expect(m.history.tick).toEqual(6);
         m.exit();
       }
+
+      @when<State>(state => state.value < 5)
+      incrementOncePerTick(s: State) {
+        return { value: s.value + 1 };
+      }
+
     }
 
     const test = new TestMachine();
@@ -47,19 +44,20 @@ describe('StateMachine', () => {
         super({ value: 0, cycle: 0 });
       }
 
-      @when(true)
+      @when<State>(true)
       incrementOncePerTick(s: State) {
         return { value: s.value + 1 };
       }
 
-      @when((_, machine) => machine.history.tick >= 5)
+      @when<State>((_, machine) => machine.history.tick >= 5)
       exitWhenDone(s: State, m: TestMachine) {
         if (m.history.tick >= 5 && s.cycle < 10) { // rewind the program 10 times
           // rewind the state machine with a side-effect
           m.history.rewind(Infinity, { cycle: s.cycle + 1 });
         }
-        else if (s.cycle >= 10)
-          m.exit(); // exit the state machine
+        else if (s.cycle >= 10) {
+          m.exit();
+        } // exit the state machine
       }
     }
 
@@ -76,23 +74,24 @@ describe('StateMachine', () => {
       value: number;
     }
 
-
     class TestMachine extends StateMachine<State> {
       constructor() {
         super({ value: 0 });
       }
 
-      @when(s => s.value < 5)
+      @when<State>(s => s.value < 5)
       incrementOncePerTick(s: State) {
         return { value: s.value + 1 };
       }
 
-      @when(state => state.value >= 5)
+      @when<State>(state => state.value >= 5)
       exitWhenDone(s: State, m: TestMachine) {
-        if (s.value >= 100)
+        if (s.value >= 100) {
           m.exit();
-        else
+        }
+        else {
           m.reset({ value: 100 });
+        }
       }
     }
 
@@ -122,11 +121,12 @@ describe('StateMachine', () => {
         return { value: s.value! + 1 };
       }
 
-      @when(state => state.value >= 5)
+      @when<State>(state => state.value !== null && state.value >= 5)
       exitWhenDone(_: State, m: TestMachine) {
         // never do this in reality, never reference anything other than the state!
-        if (rewinds++ > 100)
+        if (rewinds++ > 100) {
           m.exit({ value: null });
+        }
         m.history.clear();
         rewinds++;
       }
@@ -139,7 +139,7 @@ describe('StateMachine', () => {
 
   });
 
-  it('Can rewind n ticks', () => {
+  it('Can rewind n times', () => {
 
     type State = {
       value: number;
@@ -153,13 +153,13 @@ describe('StateMachine', () => {
         super({ value: 0 });
       }
 
-      @when(s => s.value < 3)
+      @when<State>(s => s.value < 3)
       incrementOncePerTick(s: State) {
         series.push(s.value);
         return { value: s.value + 1 };
       }
 
-      @when(state => state.value >= 3)
+      @when<State>(state => state.value >= 3)
       exitWhenDone(_: State, m: TestMachine) {
         // never do this in reality, never reference anything other than the state!
         if (++rewinds > 2)
@@ -192,6 +192,7 @@ describe('StateMachine', () => {
         super({ value: 0 });
         this.history.limit = historyLength;
       }
+
       @when(true)
       incrementOncePerTick(s: State) {
         return { value: s.value + 1 };
@@ -205,7 +206,7 @@ describe('StateMachine', () => {
       const expected: State[] = [];
       let i = Math.min(m.history.limit, m.history.tick);
       let v = Math.max(m.history.tick - m.history.limit, 0);
-      while(i-- > 0) {
+      while (i-- > 0) {
         expected.push({ value: v++ });
       }
       expect(m.history.records).toEqual(expected);
@@ -226,10 +227,12 @@ describe('StateMachine', () => {
         super({ value: 0 });
         this.history.limit = 0;
       }
+
       @when(true)
       incrementOncePerTick(s: State) {
         return { value: s.value + 1 };
       }
+
       @when((_, m) => m.history.tick >= 5)
       exitOnTick(_: State, m: TestMachine) {
         m.exit();
@@ -262,11 +265,13 @@ describe('StateMachine', () => {
         super({ inc: 1, to: 10, count: 0 });
         this.history.limit = 0;
       }
-      @when(s => s.count < s.to)
+
+      @when<State>(s => s.count < s.to)
       incrementOnceTillEqual(s: State) {
         return { count: s.count + s.inc };
       }
-      @when(s => s.count >= s.to)
+
+      @when<State>(s => s.count >= s.to)
       exitOnEqual(_: State, m: TestMachine) {
         m.exit();
       }
@@ -290,6 +295,173 @@ describe('StateMachine', () => {
     m.reset({ inc: 1, to: 10, count: 0 });
     expect(m.run()).toEqual({ inc: 1, to: 10, count: 10 });
 
+  });
+
+
+  it('@andWhen works', () => {
+
+    type State = {
+      count: number;
+      inc: number;
+      to: number;
+    }
+
+    class TestMachine extends StateMachine<State> {
+      constructor() {
+        super({ inc: 1, to: 10, count: 0 });
+        this.history.limit = 0;
+      }
+
+      @when<State>(s => s.count < s.to)
+      keepMe() {
+        /// empty rule to make the machine run to its conclusion
+      }
+
+      @when<State>(s => s.count < s.to)
+        .andWhen((_s, m) => m.history.tick % 2 === 0)
+      incrementOnceTillEqual(s: State) {
+        return { count: s.count + s.inc };
+      }
+
+      @when<State>(s => s.count >= s.to)
+      exitOnEqual(_: State, m: TestMachine) {
+        m.exit();
+      }
+    }
+
+    const m = new TestMachine();
+
+    expect(m.run()).toEqual({ inc: 1, to: 10, count: 10 });
+    expect(m.history.tick).toEqual(22);
+
+  });
+
+  it('@unless works', () => {
+
+    type State = {
+      count: number;
+      inc: number;
+      to: number;
+    }
+
+    class TestMachine extends StateMachine<State> {
+      constructor() {
+        super({ inc: 1, to: 10, count: 0 });
+        this.history.limit = 0;
+      }
+
+      @when<State>(true).unless(s => s.count >= s.to)
+      incrementOnceTillEqual(s: State) {
+        return { count: s.count + s.inc };
+      }
+
+      @when<State>(s => s.count >= s.to)
+      exitOnEqual(_: State, m: TestMachine) {
+        m.exit();
+      }
+    }
+
+    const m = new TestMachine();
+
+    while (m.history.tick < 3) {
+      m.step();
+    }
+
+    expect(m.history.currentState).toEqual({ inc: 1, to: 10, count: 2 });
+
+    m.reset({ inc: 2, to: 8, count: 0 });
+
+    expect(m.run()).toEqual({ inc: 2, to: 8, count: 8 });
+
+    m.reset({ inc: 1, to: 10, count: 0 });
+    expect(m.run()).toEqual({ inc: 1, to: 10, count: 10 });
+
+    m.reset({ inc: 1, to: 10, count: 0 });
+    expect(m.run()).toEqual({ inc: 1, to: 10, count: 10 });
+
+  });
+
+  it('@inhibitedBy works', () => {
+
+    type State = {
+      count: number;
+      inc: number;
+      to: number;
+    }
+
+    class TestMachine extends StateMachine<State> {
+      constructor() {
+        super({ inc: 1, to: 10, count: 0 });
+        this.history.limit = 0;
+      }
+
+      @when<State>(s => s.count < s.to)
+        .inhibitedBy('runsEveryOtherTime')
+      incrementOnceTillEqual(s: State) {
+        return { count: s.count + s.inc };
+      }
+
+      @when<State>((_s, m) => m.history.tick % 4 === 0)
+      runsEveryOtherTime(s: State, _m: TestMachine) {
+        return { count: s.count - s.inc };
+      }
+
+      @when<State>(s => s.count >= s.to)
+      exitOnEqual(_: State, m: TestMachine) {
+        m.exit();
+      }
+    }
+
+    const m = new TestMachine();
+
+    expect(m.run()).toEqual({ inc: 1, to: 10, count: 10 });
+    expect(m.history.tick).toEqual(20);
+
+  });
+
+  it('@input works', () => {
+
+    type FactorialState = {
+      readonly externalCounter: number;
+      currentValue: number;
+    }
+
+    let externalCounter = 0;
+
+    class FactorialMachine extends StateMachine<FactorialState> {
+
+      /// define an external counter, this can be the last known value for a
+      // real-time signal, the state of an external system, the health of an
+      // NPC, or anything not computationally expensive that can be
+      constructor() {
+        /* we set this external input here to satisfy TypeScript,
+         * but it will be overwritten anyway */
+        super({ currentValue: 1, externalCounter });
+      }
+
+      // polled with every tick.
+      @input<FactorialState>('externalCounter')
+      get externalCounterProperty() { // the property name doesn't have to match
+        return externalCounter++;
+      }
+
+      @when<FactorialState>((_, machine) => machine.history.tick <= 5)
+      reportExternalCounter(s: FactorialState) {
+        return { externalCounter:  null };
+      }
+
+      @when<FactorialState>(state => state.externalCounter <= 5)
+      incrementOncePerTick(s: FactorialState) {
+        return { currentValue: s.currentValue * s.externalCounter };
+      }
+
+    }
+
+    const test = new FactorialMachine();
+    const result = test.run();
+
+    expect(result).toBeTruthy();
+    expect(result).toHaveProperty('currentValue', 120);
   });
 
 });

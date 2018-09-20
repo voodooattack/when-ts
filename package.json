@@ -1,6 +1,6 @@
 {
   "name": "when-ts",
-  "version": "1.0.0-alpha.2",
+  "version": "1.0.0-alpha.3",
   "description": "When: A software design pattern for building event-based recombinant state machines.",
   "main": "dist/lib/src/index.js",
   "types": "dist/types/src/index.d.ts",
@@ -58,7 +58,7 @@
     ],
     "coverageThreshold": {
       "global": {
-        "branches": 75,
+        "branches": 80,
         "functions": 85,
         "lines": 85,
         "statements": 85

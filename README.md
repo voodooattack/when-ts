@@ -17,7 +17,7 @@ Please note that this spec and reference implementation are still in alpha and t
 
 - Discrete: if your actions only deal with the state object, then every state transition is 100% predictable.
 - Temporal: time can be rewound at any given moment (tick) by default, and the state machine will transition to a previously known state in time, along with any future information in the form of an optional state mutation to apply.
-- Recombinant: the pattern is based on [gene expression](https://en.wikipedia.org/wiki/Gene_expression), and since state machines are composed of events (`condition -> behaviour` pairs) that are quite similar to how real genes are theorised to work (`activation region -> coding region`), this means that genetic recombination can be applied to `when` state machines by transferring new events from one machine to another. Mutating the machine (DNA) by transferring events (genes) from one machine to the other will introduce new behaviour.
+- Recombinant: the pattern is based on [gene expression](https://en.wikipedia.org/wiki/Gene_expression), and since state machines are composed of events (`condition -> action` pairs) that are quite similar to how real genes are theorised to work (`activation region -> coding region`), this means that genetic recombination can be applied to `when` state machines by transferring new events from one machine to another. Mutating the machine (DNA) by transferring events (genes) from one machine to the other will introduce new behaviour.
 
 #### Possible Proposals
 
@@ -41,6 +41,16 @@ A `MachineState` consists of user-defined global variables (and is passed to eve
 
 An external tick counter (`history.tick`) exists and can be considered part of the state (but is not included inside the state object). It is a special variable that is automatically incremented with every new tick. Can be used to reference discrete points in time.
 
+##### Conditions and Actions
+
+All when programs consist of `condition` and `action` pairs. The condition is a and expression that must evaluate to a boolean value.
+
+When a `condition` evaluates to `true`, the associated `action` is then executed. 
+
+`actions` can modify the variables in the global state, but any modifications they make during a `tick` will be applied to the `state` only on the next `tick`.
+
+If a conflict between two or more `actions` trying to modify the same variable during a `tick` happens, the last `action` to be invoked will override the previous value set by any earlier `actions` during the current `tick`.   
+
 ##### Main loop
 
 The goal of the main loop is to move execution forward by mutating the current `state`.
@@ -51,7 +61,11 @@ Note that any new mutations caused by actions will only appear during the next `
 
 If multiple actions try to modify the same variable during the same `tick`, the last `action` to execute takes precedence.
 
-The main loop will abort by default if no conditions evaluate to `true` during a single `tick`. This prevents the program from running forever.
+##### Finite State Machines
+
+By default, the state machines built with `when` will be finite, this means that the main loop will halt by default if it exhausts all possible conditions and none evaluate to `true` and trigger an action during the same `tick`. 
+
+This prevents the program from running forever by default, and can be disabled as needed.
 
 #### State Manager
 
@@ -83,6 +97,10 @@ The main loop will abort by default if no conditions evaluate to `true` during a
 
 - `history.limit = 0;` No further state recording allowed, and acts the same as `history.limit = 1`. Discards any older history, and `history.record` will only show the previous state.
 
+#### External inputs
+
+`when` supports external inputs via the `@input` decorator. External inputs are readonly variables that are recorded as part of the state, but never manually  
+
 #### Note on Recombination
 
 This is not part of the current spec, but is currently offered by the TypeScript reference implementation. You can combine any two machines by calling `machine1.recombine(machine2)`, see the [TypeScript API documentation](https://voodooattack.github.io/when-ts/) for more details.
@@ -104,7 +122,14 @@ Here are some abstract syntax examples for a full pseudo-language based on this 
 
 You can read about the original idea (slightly outdated) [in this proposal](https://gist.github.com/voodooattack/ccb1d18112720a8de5be660dbb80541c).
 
-This is mostly pseudo-javascript with two extra `when` and `exit` keywords.
+This is mostly pseudo-javascript with two extra `when` and `exit` keywords, and using a hypothetical decorator syntax to specify action metadata. The decorators are completely optional, and the currently proposed ones are:
+
+- `@forever()` Must be defined a the start of the program, and tells the state machine not to halt due to inactivity. In this case, the machine must explicitly end its execution via a call to `exit()`. Accepts no arguments. 
+- `@name('action_name')` Associate a name with an action to be make it possible for inhibitors to reference it elsewhere. Can only be used once per action.
+- `@unless(expression)` Prevents this action from triggering if `expression` evaluates to true. Can be used multiple times with the same action.
+- `@inhibitedBy('action_name')` Prevents this action from triggering if another by `action_name` will execute during this tick. Can be used multiple times with the same action and different inhibitors.
+
+The above decorators may only precede a `when` block, and will only apply to the next encountered `when` block. 
 
 ##### Examples
 
@@ -116,17 +141,23 @@ let current = 3; // start looking at 3
 let primes = []; // array to store saved primes
 
 // increment the counter with every tick till we hit the potential prime
+@name('increment')
+@unless(primes.length >= 10)
 when(counter < current) {
   counter++;
 }
 
 // not a prime number, reset and increment current search
+@name('resetNotAPrime')
+@unless(primes.length >= 10)
 when(counter < current && current % counter === 0) {
   counter = 2;
   current++;
 }
 
 // if this is ever triggered, then we're dealing with a prime.
+@name('capturePrime')
+@unless(primes.length >= 10)
 when(counter >= current) {
   // save the prime
   primes.push(current);
@@ -136,14 +167,21 @@ when(counter >= current) {
   counter = 2;
   current++;
 }
+```
 
+To make this same machine with an explicit exit clause, simply remove all `@unless` decorators and add `@forever` at the beginning.
+
+To make this machine exit, you must add the following anywhere in the file:
+```js
 // exit when we've found enough primes
+@name('exitOnceDone')
 when(primes.length >= 10) {
   exit();  
 }
 ```
 
-Predicted exit state after `exit`: 
+With either option, the predicted exit state after the machine exits should be: 
+
 ```json
 { 
   "counter": 2,
@@ -177,6 +215,8 @@ See the [API documentation](https://voodooattack.github.io/when-ts/) for more in
 
 ### Usage
 
+Some examples are located in in [examples/](examples).
+
 - Simple example:
 
 ```typescript
@@ -191,17 +231,17 @@ class TestMachine extends EventMachine<State> {
     super({ value: 0 }); // pass the initial state to the event machine
   }
 
-  @when(true) // define a condition for this block to execute, in this case always
+  @when<State>(true) // define a condition for this block to execute, in this case always
   reportOncePerTick(s: State, m: TestMachine) {
     console.log(`beginning tick #${m.history.tick} with state`, s);
   }
 
-  @when(state => state.value < 5) // this only executes when `value` is less than 5
-  incrementOncePerTick(s: State) { // increment `value` once per tick
+  @when<State>(state => state.value < 5) currentValue
+  incrementOncePerTick(s: State) { currentValue
     return { value: s.value + 1 };
   }
 
-  @when(state => state.value >= 5) // this will only execute when `value` is >= 5
+  @when<State>(state => state.value >= 5) currentValue
   exitWhenDone(s: State, m: TestMachine) {
     console.log(`finished on tick #${m.history.tick}, exiting`, s);
     m.exit(); // exit the state machine
@@ -217,6 +257,8 @@ console.log('state machine exits with:', result);
 
 - The same prime machine from earlier, implemented in TypeScript:
 
+A better implementation exists in [examples/prime.ts](examples/prime.ts)!
+
 ```typescript
 import { StateMachine, when, MachineState } from 'when-ts';
 
@@ -231,24 +273,24 @@ class PrimeMachine extends StateMachine<PrimeState> {
     super({ counter: 2, current: 3, primes: [2] });
   }
 
-  @when(state => state.counter < state.current)
+  @when<PrimeState>(state => state.counter < state.current)
   incrementCounterOncePerTick({ counter }: PrimeState) {
     return { counter: counter + 1 };
   }
 
-  @when(state => state.counter < state.current && state.current % state.counter === 0)
+  @when<PrimeState>(state => state.counter < state.current && state.current % state.counter === 0)
   resetNotPrime({ counter, primes, current }: PrimeState) {
     return { counter: 2, current: current + 1 };
   }
 
-  @when(state => state.counter >= state.current)
+  @when<PrimeState>(state => state.counter >= state.current)
   capturePrime({ counter, primes, current }: PrimeState) {
     return { counter: 2, current: current + 1, primes: [...primes, current] };
   }
 
-  @when(state => state.primes.length >= 10)
-  exitMachine() {
-    this.exit();
+  @when<PrimeState>(state => state.primes.length >= 10)
+  exitMachine(_, m: StateMachine<PrimeState>) {
+    m.exit();
   }
 }
 
@@ -268,6 +310,8 @@ All contributions and pull requests are welcome.
 If you have something to suggest or an idea you'd like to discuss, then please submit an issue or a pull request. 
 
 Please make sure that test coverage does not drop below the set limits in `package.json`.
+
+*Note: Active development happens in the `devel` branch.*
 
 ### License (MIT)
 
