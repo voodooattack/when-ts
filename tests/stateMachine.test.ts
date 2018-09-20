@@ -17,16 +17,17 @@ describe('StateMachine', () => {
         super({ value: 0 });
       }
 
-      @when(state => state.value < 5)
-      incrementOncePerTick(s: State) {
-        return { value: s.value + 1 };
-      }
-
       @when(state => state.value >= 5)
       exitWhenDone(_: State, m: TestMachine) {
         expect(m.history.tick).toEqual(6);
         m.exit();
       }
+
+      @when(state => state.value < 5)
+      incrementOncePerTick(s: State) {
+        return { value: s.value + 1 };
+      }
+
     }
 
     const test = new TestMachine();
@@ -58,8 +59,9 @@ describe('StateMachine', () => {
           // rewind the state machine with a side-effect
           m.history.rewind(Infinity, { cycle: s.cycle + 1 });
         }
-        else if (s.cycle >= 10)
-          m.exit(); // exit the state machine
+        else if (s.cycle >= 10) {
+          m.exit();
+        } // exit the state machine
       }
     }
 
@@ -89,10 +91,12 @@ describe('StateMachine', () => {
 
       @when(state => state.value >= 5)
       exitWhenDone(s: State, m: TestMachine) {
-        if (s.value >= 100)
+        if (s.value >= 100) {
           m.exit();
-        else
+        }
+        else {
           m.reset({ value: 100 });
+        }
       }
     }
 
@@ -125,8 +129,9 @@ describe('StateMachine', () => {
       @when(state => state.value >= 5)
       exitWhenDone(_: State, m: TestMachine) {
         // never do this in reality, never reference anything other than the state!
-        if (rewinds++ > 100)
+        if (rewinds++ > 100) {
           m.exit({ value: null });
+        }
         m.history.clear();
         rewinds++;
       }
@@ -192,6 +197,7 @@ describe('StateMachine', () => {
         super({ value: 0 });
         this.history.limit = historyLength;
       }
+
       @when(true)
       incrementOncePerTick(s: State) {
         return { value: s.value + 1 };
@@ -205,7 +211,7 @@ describe('StateMachine', () => {
       const expected: State[] = [];
       let i = Math.min(m.history.limit, m.history.tick);
       let v = Math.max(m.history.tick - m.history.limit, 0);
-      while(i-- > 0) {
+      while (i-- > 0) {
         expected.push({ value: v++ });
       }
       expect(m.history.records).toEqual(expected);
@@ -226,10 +232,12 @@ describe('StateMachine', () => {
         super({ value: 0 });
         this.history.limit = 0;
       }
+
       @when(true)
       incrementOncePerTick(s: State) {
         return { value: s.value + 1 };
       }
+
       @when((_, m) => m.history.tick >= 5)
       exitOnTick(_: State, m: TestMachine) {
         m.exit();
@@ -262,10 +270,12 @@ describe('StateMachine', () => {
         super({ inc: 1, to: 10, count: 0 });
         this.history.limit = 0;
       }
+
       @when(s => s.count < s.to)
       incrementOnceTillEqual(s: State) {
         return { count: s.count + s.inc };
       }
+
       @when(s => s.count >= s.to)
       exitOnEqual(_: State, m: TestMachine) {
         m.exit();

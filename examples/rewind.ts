@@ -26,8 +26,9 @@ class TestMachine extends StateMachine<State> {
     if (s.cycle < 10) { // rewind the program 10 times
       m.history.rewind(Infinity, { cycle: s.cycle + 1 }); // rewind the state machine with a side-effect
     }
-    else if (s.cycle >= 10)
-      m.exit(); // exit the state machine
+    else if (s.cycle >= 10) {
+      m.exit();
+    } // exit the state machine
   }
 }
 

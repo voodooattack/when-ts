@@ -3,95 +3,76 @@ import { MachineState, StateMachine, when } from '../src';
 describe('Recombination', () => {
 
   interface CommonState extends MachineState {
-    sharedValue?: number;
+    sharedValue?: string;
   }
 
   interface StateA extends CommonState {
-    valueA: number;
+    valueA: string;
   }
 
   interface StateB extends CommonState {
-    valueB: number;
+    valueB: string;
   }
 
   class TestMachineA extends StateMachine<StateA> {
     constructor() {
-      super({ valueA: 0 });
+      super({ valueA: '' });
     }
 
-    @when(true)
-    incrementOncePerTick(s: StateA) {
-      return { valueA: s.valueA + (s.sharedValue || 1) };
-    }
-
-    @when(state => state.valueA >= 5)
-    exitMachine() {
-      this.exit();
+    @when((_, m) => m.history.tick <= 5)
+    incrementAOncePerTick(s: StateA) {
+      return { valueA: s.valueA + (s.sharedValue || 'a') };
     }
 
   }
 
   class TestMachineB extends StateMachine<StateB> {
     constructor() {
-      super({ valueB: 0 });
+      super({ valueB: '' });
     }
 
-    @when(true)
-    incrementOncePerTick(s: StateB) {
-      return { valueB: s.valueB + ((s.sharedValue || 1) ** 2) };
+    @when((_, m) => m.history.tick <= 10)
+    incrementBOncePerTick(s: StateB) {
+      return { valueB: s.valueB + (s.sharedValue || 'b') };
     }
 
+  }
 
-    @when(state => state.valueB >= 10)
+  class TestMachineC extends StateMachine<Required<CommonState>> {
+    constructor() {
+      super({ sharedValue: 'c' });
+    }
 
-
-    @when(state => state.valueB >= 10)
-    exitMachine() {
-      this.exit();
+    @when((_, m) => m.history.tick <= 10)
+    incrementSharedPerTick(s: Required<CommonState>) {
+      return { sharedValue: s.sharedValue === 'c' ? 'd' : 'c' };
     }
   }
 
   it('Can handle basic recombination', () => {
     const testA = new TestMachineA();
     const testB = new TestMachineB();
-
-    const resultA = testA.run();
-    const resultB = testB.run();
-
-    expect(resultA).toEqual({ valueA: 5 });
-    expect(resultB).toEqual({ valueB: 10 });
-
     const testC = testA.recombine(testB);
+    expect(testC).toBeInstanceOf(new StateMachine<StateA & StateB>({} as any).constructor);
     const resultC = testC.run();
-
-    expect(resultC).toEqual({ valueA: 5, valueB: 5 });
+    expect(resultC).toEqual({ valueA: 'a'.repeat(5), valueB: 'b'.repeat(10) });
   });
 
-  class TestMachineC extends StateMachine<CommonState> {
-    constructor() {
-      super({ sharedValue: 0 });
-    }
-
-    @when(true)
-    incrementOncePerTick(s: StateB) {
-      return { sharedValue: s.sharedValue! + 10 };
-    }
-  }
-
-  it('Recombination can introduce emergent behaviour', () => {
+  it('Recombination can introduce new behaviour', () => {
     const testA = new TestMachineA();
     const testB = new TestMachineB();
 
+    const testAll = testA.recombine(testB).recombine(new TestMachineC());
+
     const resultA = testA.run();
     const resultB = testB.run();
 
-    expect(resultA).toEqual({ valueA: 5 });
-    expect(resultB).toEqual({ valueB: 10 });
+    expect(resultA).toEqual({ valueA: 'a'.repeat(5) });
+    expect(resultB).toEqual({ valueB: 'b'.repeat(10) });
 
-    const testC = testA.recombine(testB).recombine(new TestMachineC());
-    const resultC = testC.run();
+    const resultAll = testAll.run();
 
-    expect(resultC).toEqual({ sharedValue: 20, valueA: 31, valueB: 101 });
+    expect(resultAll).toEqual({ sharedValue: 'c', valueA: 'cdcdc', valueB: 'cdcdcdcdcd' });
   });
 
 });

@@ -1,5 +1,6 @@
 import { MachineState, StateMachine, when } from '../src';
-describe('Recombination', () => {
+
+describe('Prime', () => {
   it('Can calculate a prime', () => {
 
     interface PrimeState extends MachineState {
@@ -38,9 +39,8 @@ describe('Recombination', () => {
 
     const result = primeMachine.run();
 
-    console.log(result!.primes);
-
     expect(result).not.toBeFalsy();
     expect(result!.primes).toEqual([2, 3, 5, 7, 11, 13, 17, 19, 23, 29]);
+
   });
 });

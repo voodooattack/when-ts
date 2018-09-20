@@ -22,8 +22,9 @@ class TestMachine extends StateMachine<State> {
   @when(state => state.value >= 5) // this will only execute when `value` is >= 5
   exitWhenDone(s: State, m: TestMachine) {
     console.log(`finished on tick #${m.history.tick}, exiting`, s);
-    if (m.history.tick >= 5)
-      m.exit(); // exit the state machine
+    if (m.history.tick >= 5) {
+      m.exit();
+    } // exit the state machine
   }
 }
 

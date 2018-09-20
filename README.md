@@ -17,7 +17,7 @@ Please note that this spec and reference implementation are still in alpha and t
 
 - Discrete: if your actions only deal with the state object, then every state transition is 100% predictable.
 - Temporal: time can be rewound at any given moment (tick) by default, and the state machine will transition to a previously known state in time, along with any future information in the form of an optional state mutation to apply.
-- Recombinant: the pattern is based on [gene expression](https://en.wikipedia.org/wiki/Gene_expression), and since state machines are composed of events (`condition -> behaviour` pairs) that are quite similar to how real genes are theorised to work (`activation region -> coding region`), this means that genetic recombination can be applied to `when` state machines by transferring new events from one machine to another. Mutating the machine (DNA) by transferring events (genes) from one machine to the other will introduce new behaviour.
+- Recombinant: the pattern is based on [gene expression](https://en.wikipedia.org/wiki/Gene_expression), and since state machines are composed of events (`condition -> action` pairs) that are quite similar to how real genes are theorised to work (`activation region -> coding region`), this means that genetic recombination can be applied to `when` state machines by transferring new events from one machine to another. Mutating the machine (DNA) by transferring events (genes) from one machine to the other will introduce new behaviour.
 
 #### Possible Proposals
 
@@ -41,6 +41,16 @@ A `MachineState` consists of user-defined global variables (and is passed to eve
 
 An external tick counter (`history.tick`) exists and can be considered part of the state (but is not included inside the state object). It is a special variable that is automatically incremented with every new tick. Can be used to reference discrete points in time.
 
+##### Conditions and Actions
+
+All when programs consist of `condition` and `action` pairs. The condition is a and expression that must evaluate to a boolean value.
+
+When a `condition` evaluates to `true`, the associated `action` is then executed. 
+
+`actions` can modify the variables in the global state, but any modifications they make during a `tick` will be applied to the `state` only on the next `tick`.
+
+If a conflict between two or more `actions` trying to modify the same variable during a `tick` happens, the last `action` to be invoked will override the previous value set by any earlier `actions` during the current `tick`.   
+
 ##### Main loop
 
 The goal of the main loop is to move execution forward by mutating the current `state`.
@@ -51,7 +61,7 @@ Note that any new mutations caused by actions will only appear during the next `
 
 If multiple actions try to modify the same variable during the same `tick`, the last `action` to execute takes precedence.
 
-The main loop will abort by default if no conditions evaluate to `true` during a single `tick`. This prevents the program from running forever.
+The main loop will halt by default if no conditions evaluate to `true` during a single `tick`. This prevents the program from running forever.
 
 #### State Manager
 

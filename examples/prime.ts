@@ -1,4 +1,4 @@
-import { StateMachine, when, MachineState } from '../src';
+import { MachineState, StateMachine, when } from '../src';
 
 interface PrimeState extends MachineState {
   counter: number;
@@ -36,5 +36,6 @@ const primeMachine = new PrimeMachine();
 
 const result = primeMachine.run();
 
-if (result)
+if (result) {
   console.log(result!.primes);
+}
