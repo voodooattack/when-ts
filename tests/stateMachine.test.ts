@@ -144,7 +144,7 @@ describe('StateMachine', () => {
 
   });
 
-  it('Can rewind n ticks', () => {
+  it('Can rewind n times', () => {
 
     type State = {
       value: number;

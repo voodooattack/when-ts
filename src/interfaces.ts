@@ -35,9 +35,9 @@ export interface IHistory<S extends MachineState> {
   limit: number;
 
   /**
-   * Rewind time by `n` ticks, the rest of the currently executing tick will be aborted.
+   * Rewind time by `n` times, the rest of the currently executing tick will be aborted.
    *  A partial state can be passed as the second argument to mutate the rewound state.
-   * @param {number} n The number of ticks to rewind, defaults to Infinity.
+   * @param {number} n The number of times to rewind, defaults to Infinity.
    * @param {Partial<S extends MachineState>} mutate Any mutations to apply to the state after rewinding.
    */
   rewind(n: number, mutate?: Partial<S>): void;

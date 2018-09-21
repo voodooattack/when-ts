@@ -116,7 +116,7 @@ export class StateMachine<S extends MachineState> {
    * @returns {Readonly<S extends MachineState>|null} Returns the machine's exit state,
    *  or null if the machine halted.
    */
-  run(forever: boolean = false) {
+  run(forever: boolean = false): S {
     while (!this._exitState) {
       const change = this.step();
       if (!forever && !change) {
