@@ -4,11 +4,13 @@ interface PrimeState extends MachineState {
   counter: number;
   current: number;
   primes: number[];
+  readonly numberOfPrimes: number;
 }
 
+// this state machine will perpetually discover primes up to the specified count
 class PrimeMachine extends StateMachine<PrimeState> {
-  constructor() {
-    super({ counter: 2, current: 3, primes: [2] });
+  constructor(public readonly numberOfPrimes: number) {
+    super({ counter: 2, current: 3, primes: [2], numberOfPrimes });
   }
 
   @when(state => state.counter < state.current)
@@ -26,16 +28,18 @@ class PrimeMachine extends StateMachine<PrimeState> {
     return { counter: 2, current: current + 1, primes: [...primes, current] };
   }
 
-  @when(state => state.primes.length >= 10)
+  @when(state => state.primes.length >= state.numberOfPrimes)
   exitMachine() {
     this.exit();
   }
 }
 
-const primeMachine = new PrimeMachine();
+const primeMachine = new PrimeMachine(10);
 
 const result = primeMachine.run();
 
 if (result) {
-  console.log(result!.primes);
+  console.log(`${primeMachine.numberOfPrimes} prime numbers found:`,
+    result!.primes, `in ${primeMachine.history.tick} ticks.`
+  );
 }
