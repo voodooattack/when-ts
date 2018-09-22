@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { actionMetadataKey, inputMetadataKey } from './actionMetadataKey';
 import { ActivationAction, ActivationCond, MachineState } from './interfaces';
 import { StateMachine } from './stateMachine';
-import { chainWhen, ConditionBuilder, ConstructorOf, WhenDecoratorWithChain } from './util';
+import { chainWhen, ConditionBuilder, ConstructorOf, InputMapping, WhenDecoratorWithChain } from './util';
 
 export * from './stateMachine';
 export * from './interfaces';
@@ -39,7 +39,7 @@ export function when<S extends MachineState>(
  * @ignore chainedHistory
  * @return {WhenDecoratorWithChain<S>}
  */
-export function exceptWhen<S extends MachineState>(
+export function unless<S extends MachineState>(
   inhibitor: ActivationCond<S>,
   chainedHistory: ConditionBuilder<S>[] = []
 ): WhenDecoratorWithChain<S> {
@@ -86,20 +86,26 @@ export function inhibitedBy<S extends MachineState, M extends StateMachine<S> = 
         return !cond.apply(this, arguments);
       };
     },
-    ...chainedHistory,
+    ...chainedHistory
   ]);
 }
 
 /**
- * Mark a property as a state machine input.
- * @param key
+ * Mark a property as a state machine input. This will poll the target with every tick and
+ * update the provided key in the state.
+ * @param key The name of a variable in the state object.
+ * @param transform An optional transformation function to transform the value.
  */
-// TODO: Finish inputs, disabling coverage for now
-/* istanbul ignore next */
-export function input<S extends MachineState = any>(
-  key: keyof S
+export function input<S extends MachineState, K extends keyof S = any, T extends S[K] = any>(
+  key: K,
+  transform?: { (value: T): T }
 ): PropertyDecorator {
   return function (target: Object, propertyKey: string | symbol) {
-    Reflect.defineMetadata(inputMetadataKey, { target, key, propertyKey }, target);
+    let set: Set<InputMapping<S,K,any>> = Reflect.getMetadata(inputMetadataKey, target);
+    if (!set) {
+      set = new Set();
+    }
+    set.add({ target, key, propertyKey, transform });
+    Reflect.defineMetadata(inputMetadataKey, set, target);
   };
 }

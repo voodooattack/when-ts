@@ -1,18 +1,27 @@
-import { MachineState } from './index';
+import { MachineState, StateMachine } from './index';
 import { IHistory } from './interfaces';
+import { InputMapping } from './util';
 
 /**
  * The HistoryManager class manages the state/history of a program.
  */
 export class HistoryManager<S extends MachineState> implements IHistory<S> {
   private _maxHistory: number = Infinity;
+  private _inputKeys: (keyof S)[] = [];
 
   /**
-   * Constrctor with an initial state.
+   * Constructor with an initial state.
+   * @param _instance The state machine instance.
    * @param {S} _initialState The initial program state.
+   * @param _inputs An input mapping.
    */
-  constructor(protected readonly _initialState: S) {
-    this._nextState = _initialState;
+  /** @internal */
+  constructor(protected _instance: StateMachine<S>, protected readonly _initialState: S,
+    protected readonly _inputs: Set<InputMapping<S, any>>)
+  {
+    _inputs.forEach(input => this._inputKeys.push(input.key));
+    this._initialState = Object.assign(Object.create(null), _initialState, this._collectInputs());
+    this._nextState = Object.assign(Object.create(null), this._initialState);
     this._nextTick();
   }
 
@@ -108,7 +117,7 @@ export class HistoryManager<S extends MachineState> implements IHistory<S> {
         ) as S;
     }
 
-    this._resetTick();
+    this._beginTick();
   }
 
   /**
@@ -121,6 +130,8 @@ export class HistoryManager<S extends MachineState> implements IHistory<S> {
 
   /** @internal */
   _mutateTick(p: Partial<S>) {
+    for(let k of this._inputKeys)
+      delete p[k];
     return Object.assign(this._nextState, p);
   }
 
@@ -134,15 +145,28 @@ export class HistoryManager<S extends MachineState> implements IHistory<S> {
         this.records.length - this._maxHistory
       );
     }
-    this._resetTick();
+    this._beginTick();
     this._tick++;
   }
 
-  protected _resetTick() {
-    this._nextState = Object.assign(
+  /** @internal */
+  protected _beginTick() {
+    return this._nextState = Object.assign(
       Object.create(null),
-      this.records[this.records.length - 1]
+      this.records[this.records.length - 1],
+      this._collectInputs()
     );
+  }
+
+  /** @internal */
+  _collectInputs() {
+    const inputs: Partial<S> = Object.create(null);
+    for (let input of this._inputs) {
+      const value = this._instance[input.propertyKey as keyof StateMachine<S>];
+      inputs[input.key as keyof S] =
+        input.transform ? input.transform.call(this._instance, value) : value;
+    }
+    return inputs;
   }
 
 }

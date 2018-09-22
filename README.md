@@ -61,7 +61,11 @@ Note that any new mutations caused by actions will only appear during the next `
 
 If multiple actions try to modify the same variable during the same `tick`, the last `action` to execute takes precedence.
 
-The main loop will halt by default if no conditions evaluate to `true` during a single `tick`. This prevents the program from running forever.
+##### Finite State Machines
+
+By default, the state machines built with `when` will be finite, this means that the main loop will halt by default if it exhausts all possible conditions and none evaluate to `true` and trigger an action during the same `tick`. 
+
+This prevents the program from running forever by default, and can be disabled as needed.
 
 #### State Manager
 
@@ -93,6 +97,10 @@ The main loop will halt by default if no conditions evaluate to `true` during a 
 
 - `history.limit = 0;` No further state recording allowed, and acts the same as `history.limit = 1`. Discards any older history, and `history.record` will only show the previous state.
 
+#### External inputs
+
+`when` supports external inputs via the `@input` decorator. External inputs are readonly variables that are recorded as part of the state, but never manually  
+
 #### Note on Recombination
 
 This is not part of the current spec, but is currently offered by the TypeScript reference implementation. You can combine any two machines by calling `machine1.recombine(machine2)`, see the [TypeScript API documentation](https://voodooattack.github.io/when-ts/) for more details.
@@ -114,7 +122,14 @@ Here are some abstract syntax examples for a full pseudo-language based on this 
 
 You can read about the original idea (slightly outdated) [in this proposal](https://gist.github.com/voodooattack/ccb1d18112720a8de5be660dbb80541c).
 
-This is mostly pseudo-javascript with two extra `when` and `exit` keywords.
+This is mostly pseudo-javascript with two extra `when` and `exit` keywords, and using a hypothetical decorator syntax to specify action metadata. The decorators are completely optional, and the currently proposed ones are:
+
+- `@forever()` Must be defined a the start of the program, and tells the state machine not to halt due to inactivity. In this case, the machine must explicitly end its execution via a call to `exit()`. Accepts no arguments. 
+- `@name('action_name')` Associate a name with an action to be make it possible for inhibitors to reference it elsewhere. Can only be used once per action.
+- `@unless(expression)` Prevents this action from triggering if `expression` evaluates to true. Can be used multiple times with the same action.
+- `@inhibitedBy('action_name')` Prevents this action from triggering if another by `action_name` will execute during this tick. Can be used multiple times with the same action and different inhibitors.
+
+The above decorators may only precede a `when` block, and will only apply to the next encountered `when` block. 
 
 ##### Examples
 
@@ -126,17 +141,23 @@ let current = 3; // start looking at 3
 let primes = []; // array to store saved primes
 
 // increment the counter with every tick till we hit the potential prime
+@name('increment')
+@unless(primes.length >= 10)
 when(counter < current) {
   counter++;
 }
 
 // not a prime number, reset and increment current search
+@name('resetNotAPrime')
+@unless(primes.length >= 10)
 when(counter < current && current % counter === 0) {
   counter = 2;
   current++;
 }
 
 // if this is ever triggered, then we're dealing with a prime.
+@name('capturePrime')
+@unless(primes.length >= 10)
 when(counter >= current) {
   // save the prime
   primes.push(current);
@@ -146,14 +167,21 @@ when(counter >= current) {
   counter = 2;
   current++;
 }
+```
 
+To make this same machine with an explicit exit clause, simply remove all `@unless` decorators and add `@forever` at the beginning.
+
+To make this machine exit, you must add the following anywhere in the file:
+```js
 // exit when we've found enough primes
+@name('exitOnceDone')
 when(primes.length >= 10) {
   exit();  
 }
 ```
 
-Predicted exit state after `exit`: 
+With either option, the predicted exit state after the machine exits should be: 
+
 ```json
 { 
   "counter": 2,
@@ -208,12 +236,12 @@ class TestMachine extends EventMachine<State> {
     console.log(`beginning tick #${m.history.tick} with state`, s);
   }
 
-  @when<State>(state => state.value < 5) // this only executes when `value` is less than 5
-  incrementOncePerTick(s: State) { // increment `value` once per tick
+  @when<State>(state => state.value < 5) currentValue
+  incrementOncePerTick(s: State) { currentValue
     return { value: s.value + 1 };
   }
 
-  @when<State>(state => state.value >= 5) // this will only execute when `value` is >= 5
+  @when<State>(state => state.value >= 5) currentValue
   exitWhenDone(s: State, m: TestMachine) {
     console.log(`finished on tick #${m.history.tick}, exiting`, s);
     m.exit(); // exit the state machine

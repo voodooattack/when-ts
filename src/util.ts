@@ -1,14 +1,23 @@
 /** @internal */
 import { actionMetadataKey } from './actionMetadataKey';
-import { exceptWhen, inhibitedBy, when } from './index';
+import { unless, inhibitedBy, when } from './index';
 import { ActivationCond } from './interfaces';
 
 export type MemberOf<T extends Object> = {
   (this: T, ...args: any[]): any;
 };
 
+/** @internal */
+export type InputMapping<S, K extends keyof S, T extends S[K] = any> = {
+  target: any;
+  key: K;
+  propertyKey: string|symbol;
+  transform?: { (value: T): T };
+}
+
 /**
- * Unused for now
+ * Unused for now, can be used by @inhibitWhen to lookup
+ * inhibitor actions in the parent class(es) later on.
  */
 /** @internal */
 // istanbul ignore next
@@ -30,7 +39,7 @@ export type ConditionBuilder<S> = {
 };
 export type WhenDecoratorChainResult<S> = {
   andWhen(cond: ActivationCond<S> | true): WhenDecoratorWithChain<S>;
-  exceptWhen(condition: ActivationCond<S>): WhenDecoratorWithChain<S>;
+  unless(condition: ActivationCond<S>): WhenDecoratorWithChain<S>;
   inhibitedBy<M>(exclude: keyof M): WhenDecoratorWithChain<S>;
 }
 export type WhenDecoratorWithChain<S> = MethodDecorator & WhenDecoratorChainResult<S>;
@@ -42,7 +51,7 @@ export function chainWhen<S>(chainedHistory: ConditionBuilder<S>[]): WhenDecorat
     buildDecorator(chainedHistory),
     {
       andWhen: (...args: any[]) => (when as any)(...args, chainedHistory),
-      exceptWhen: (...args: any[]) => (exceptWhen as any)(...args, chainedHistory),
+      unless: (...args: any[]) => (unless as any)(...args, chainedHistory),
       inhibitedBy: (...args: any[]) => (inhibitedBy as any)(...args, chainedHistory)
     }
   );

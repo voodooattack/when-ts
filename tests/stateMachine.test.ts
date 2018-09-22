@@ -1,10 +1,6 @@
-import { exceptWhen, inhibitedBy, StateMachine, when } from '../src';
+import { input, StateMachine, when } from '../src';
 
 describe('StateMachine', () => {
-
-  it('StateMachine is instantiable', () => {
-    expect(new StateMachine({})).toBeInstanceOf(StateMachine);
-  });
 
   it('Can handle a basic state machine', () => {
 
@@ -340,7 +336,7 @@ describe('StateMachine', () => {
 
   });
 
-  it('@exceptWhen works', () => {
+  it('@unless works', () => {
 
     type State = {
       count: number;
@@ -354,8 +350,7 @@ describe('StateMachine', () => {
         this.history.limit = 0;
       }
 
-      @when<State>(true)
-        .exceptWhen(s => s.count >= s.to)
+      @when<State>(true).unless(s => s.count >= s.to)
       incrementOnceTillEqual(s: State) {
         return { count: s.count + s.inc };
       }
@@ -422,6 +417,51 @@ describe('StateMachine', () => {
     expect(m.run()).toEqual({ inc: 1, to: 10, count: 10 });
     expect(m.history.tick).toEqual(20);
 
+  });
+
+  it('@input works', () => {
+
+    type FactorialState = {
+      readonly externalCounter: number;
+      currentValue: number;
+    }
+
+    let externalCounter = 0;
+
+    class FactorialMachine extends StateMachine<FactorialState> {
+
+      /// define an external counter, this can be the last known value for a
+      // real-time signal, the state of an external system, the health of an
+      // NPC, or anything not computationally expensive that can be
+      constructor() {
+        /* we set this external input here to satisfy TypeScript,
+         * but it will be overwritten anyway */
+        super({ currentValue: 1, externalCounter });
+      }
+
+      // polled with every tick.
+      @input<FactorialState>('externalCounter')
+      get externalCounterProperty() { // the property name doesn't have to match
+        return externalCounter++;
+      }
+
+      @when<FactorialState>((_, machine) => machine.history.tick <= 5)
+      reportExternalCounter(s: FactorialState) {
+        return { externalCounter:  null };
+      }
+
+      @when<FactorialState>(state => state.externalCounter <= 5)
+      incrementOncePerTick(s: FactorialState) {
+        return { currentValue: s.currentValue * s.externalCounter };
+      }
+
+    }
+
+    const test = new FactorialMachine();
+    const result = test.run();
+
+    expect(result).toBeTruthy();
+    expect(result).toHaveProperty('currentValue', 120);
   });
 
 });

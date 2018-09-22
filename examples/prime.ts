@@ -39,7 +39,7 @@ class PrimeMachine extends StateMachine<PrimeState> {
   // increment the counter with every tick
   @when<PrimeState>(state => state.counter < state.current)
   // this inhibit cause execution to end when we've found the required number of primes
-    .exceptWhen(state => state.primes.length >= state.numberOfPrimes)
+    .unless(state => state.primes.length >= state.numberOfPrimes)
   incrementCounterOncePerTick({ counter }: PrimeState) {
     return { counter: counter + 1 };
   }
@@ -47,7 +47,7 @@ class PrimeMachine extends StateMachine<PrimeState> {
   // this will only be triggered if the current number fails the prime check
   @when<PrimeState>(
     state => state.counter < state.current && state.current % state.counter === 0)
-    .exceptWhen(state => state.primes.length >= state.numberOfPrimes)
+    .unless(state => state.primes.length >= state.numberOfPrimes)
   resetNotPrime({ current }: PrimeState) {
     return {
       counter: 2, // reset the counter
@@ -57,7 +57,7 @@ class PrimeMachine extends StateMachine<PrimeState> {
 
   // this will only be triggered when all checks have passed (the number is a confirmed prime)
   @when<PrimeState>(state => state.counter === state.current)
-    .exceptWhen(state => state.primes.length >= state.numberOfPrimes)
+    .unless(state => state.primes.length >= state.numberOfPrimes)
   capturePrime({ primes, current, times }: PrimeState, { history }: PrimeMachine) {
     return {
       counter: 2, // reset the counter

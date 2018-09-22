@@ -1,4 +1,4 @@
-import { actionMetadataKey } from './actionMetadataKey';
+import { actionMetadataKey, inputMetadataKey } from './actionMetadataKey';
 import { HistoryManager } from './historyManager';
 import { ActivationAction, ActivationCond, MachineState } from './index';
 import { IHistory } from './interfaces';
@@ -51,7 +51,7 @@ export class StateMachine<S extends MachineState> {
    * Constructor, requires an initial state.
    * @param {S} _initialState
    */
-  constructor(protected readonly _initialState: S) {
+  protected constructor(_initialState: S) {
     const properties = getAllMethods(this);
     for (let m of properties) {
       if (Reflect.hasMetadata(actionMetadataKey, m)) {
@@ -59,6 +59,11 @@ export class StateMachine<S extends MachineState> {
         this._program.set(cond, m as any);
       }
     }
+    // load any inputs defined through the `@input` decorator.
+    const inputs = Reflect.getMetadata(inputMetadataKey, Object.getPrototypeOf(this));
+    this._history = new HistoryManager<S>(
+      this, _initialState, inputs || new Set()
+    );
   }
 
   /**
@@ -66,8 +71,7 @@ export class StateMachine<S extends MachineState> {
    * @type {HistoryManager<S extends MachineState>}
    * @private
    */
-  private _history: HistoryManager<S> =
-    new HistoryManager<S>(this._initialState);
+  private _history: HistoryManager<S>;
 
   /**
    * Returns the history manager object.
@@ -93,7 +97,7 @@ export class StateMachine<S extends MachineState> {
    */
   step() {
     let fired = 0;
-    const current = this._history.currentState;
+    const current = this._history.currentState
     for (let [cond, body] of this._program) {
       if (cond.call(this, current, this)) {
         const newState = body.call(this, current, this);
@@ -132,7 +136,7 @@ export class StateMachine<S extends MachineState> {
    * Resets the state machine to the initial state.
    * @param {S} initialState (optional) Restart with a different initial state.
    */
-  reset(initialState: S = this._initialState) {
+  reset(initialState: S = this.history.initialState) {
     this._exitState = undefined;
     this.history.rewind(Infinity, initialState);
   }
