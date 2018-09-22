@@ -129,12 +129,12 @@ This is mostly pseudo-javascript with two extra `when` and `exit` keywords, and 
 - `@unless(expression)` Prevents this action from triggering if `expression` evaluates to true. Can be used multiple times with the same action.
 - `@inhibitedBy('action_name')` Prevents this action from triggering if another by `action_name` will execute during this tick. Can be used multiple times with the same action and different inhibitors.
 
-The above decorators may only precede a `when` block, and will only apply to the next encountered `when` block. 
+The last three decorators may only precede a `when` block, and will only apply to that `when` block. 
 
-##### Examples
+#### Examples
 
-- A prime number generator: 
-  
+##### A prime number generator: 
+
 ```javascript
 let counter = 2; // starting counting up from 2
 let current = 3; // start looking at 3
@@ -204,8 +204,10 @@ Additionally, you must add the following to your project's `tsconfig.json` for t
 
 ```json
 {
-  "experimentalDecorators": true,
-  "emitDecoratorMetadata": true
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  }  
 }
 ```
 
@@ -217,7 +219,7 @@ See the [API documentation](https://voodooattack.github.io/when-ts/) for more in
 
 Some examples are located in in [examples/](examples).
 
-- Simple example:
+#### Simple example:
 
 ```typescript
 import { EventMachine, when } from 'when-ts';
@@ -255,7 +257,7 @@ const result = test.run(); // this will block until the machine exits, unlike `.
 console.log('state machine exits with:', result);
 ```
 
-- The same prime machine from earlier, implemented in TypeScript:
+#### The same prime machine from earlier, implemented in TypeScript:
 
 A better implementation exists in [examples/prime.ts](examples/prime.ts)!
 
