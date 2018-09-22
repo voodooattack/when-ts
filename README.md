@@ -250,7 +250,7 @@ class TestMachine extends EventMachine<State> {
 
 const test = new TestMachine();
 
-const result = test.run(); // this does will block until the machine exits, unlike `.step()`
+const result = test.run(); // this will block until the machine exits, unlike `.step()`
 
 console.log('state machine exits with:', result);
 ```

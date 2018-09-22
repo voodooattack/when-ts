@@ -15,7 +15,7 @@ export class HistoryManager<S extends MachineState> implements IHistory<S> {
    * @param {S} _initialState The initial program state.
    * @param _inputs An input mapping.
    */
-  /** @internal */
+  /** @ignore */
   constructor(protected _instance: StateMachine<S>, protected readonly _initialState: S,
     protected readonly _inputs: Set<InputMapping<S, any>>)
   {
@@ -128,14 +128,14 @@ export class HistoryManager<S extends MachineState> implements IHistory<S> {
     this.rewind(Infinity);
   }
 
-  /** @internal */
+  /** @ignore */
   _mutateTick(p: Partial<S>) {
     for(let k of this._inputKeys)
       delete p[k];
     return Object.assign(this._nextState, p);
   }
 
-  /** @internal */
+  /** @ignore */
   _nextTick() {
     const nextState = this.nextState as Readonly<S>;
     this._records.push(nextState);
@@ -149,7 +149,7 @@ export class HistoryManager<S extends MachineState> implements IHistory<S> {
     this._tick++;
   }
 
-  /** @internal */
+  /** @ignore */
   protected _beginTick() {
     return this._nextState = Object.assign(
       Object.create(null),
@@ -158,7 +158,7 @@ export class HistoryManager<S extends MachineState> implements IHistory<S> {
     );
   }
 
-  /** @internal */
+  /** @ignore */
   _collectInputs() {
     const inputs: Partial<S> = Object.create(null);
     for (let input of this._inputs) {

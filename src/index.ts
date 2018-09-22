@@ -1,14 +1,11 @@
 import 'reflect-metadata';
 import { actionMetadataKey, inputMetadataKey } from './actionMetadataKey';
-import { ActivationAction, ActivationCond, MachineState } from './interfaces';
+import { ActivationCond, MachineState } from './interfaces';
 import { StateMachine } from './stateMachine';
 import { chainWhen, ConditionBuilder, ConstructorOf, InputMapping, WhenDecoratorWithChain } from './util';
 
 export * from './stateMachine';
 export * from './interfaces';
-
-export type InhibitedActionCallback<M extends StateMachine<any>, S extends MachineState> =
-  (type: ConstructorOf<M>) => ActivationAction<S, any>;
 
 /**
  * Builds a condition for the final decorator.
@@ -18,7 +15,6 @@ export type InhibitedActionCallback<M extends StateMachine<any>, S extends Machi
 /**
  * A TypeScript decorator to declare a method as an action with one or more attached a conditions.
  * @param cond A condition to match against every tick or true.
- * @ignore chainedHistory
  */
 export function when<S extends MachineState>(
   cond: ActivationCond<S> | true,
@@ -36,7 +32,6 @@ export function when<S extends MachineState>(
  * conditions.
  * An inhibitor prevents the execution of the action for one tick if the others can activate.
  * @param {ActivationCond<S>[]} inhibitor The inhibiting member action.
- * @ignore chainedHistory
  * @return {WhenDecoratorWithChain<S>}
  */
 export function unless<S extends MachineState>(
@@ -51,17 +46,16 @@ export function unless<S extends MachineState>(
   ]);
 }
 
+// noinspection JSCommentMatchesSignature
 /**
  * A chainable TypeScript decorator to declare a method as an action with one or more inhibitor
  * actions.
  * An inhibitor prevents the execution of the action for one tick if the others can activate.
- * @param {InhibitedActionCallback<S>} inhibitorAction The inhibiting member action.
- * @param chainedHistory
+ * @param {string} inhibitorAction The name of the inhibiting member action.
  * @return {WhenDecoratorWithChain<S>}
  */
 export function inhibitedBy<S extends MachineState, M extends StateMachine<S> = any>(
   inhibitorAction: keyof M,
-  /** @ignore */
   chainedHistory: ConditionBuilder<S>[] = []
 ): WhenDecoratorWithChain<S> {
   const findCond = (instance: M) => {
@@ -101,7 +95,7 @@ export function input<S extends MachineState, K extends keyof S = any, T extends
   transform?: { (value: T): T }
 ): PropertyDecorator {
   return function (target: Object, propertyKey: string | symbol) {
-    let set: Set<InputMapping<S,K,any>> = Reflect.getMetadata(inputMetadataKey, target);
+    let set: Set<InputMapping<S, K, any>> = Reflect.getMetadata(inputMetadataKey, target);
     if (!set) {
       set = new Set();
     }
@@ -109,3 +103,5 @@ export function input<S extends MachineState, K extends keyof S = any, T extends
     Reflect.defineMetadata(inputMetadataKey, set, target);
   };
 }
+export { StateOf } from './util';
+export { getAllMethods } from './util';

@@ -2,25 +2,7 @@ import { actionMetadataKey, inputMetadataKey } from './actionMetadataKey';
 import { HistoryManager } from './historyManager';
 import { ActivationAction, ActivationCond, MachineState } from './index';
 import { IHistory } from './interfaces';
-
-/** @internal */
-function getAllMethods(object: any): Function[] {
-  let current = object;
-  let props: string[] = [];
-
-  do {
-    props.push(...Object.getOwnPropertyNames(current));
-    current = Object.getPrototypeOf(current);
-  } while (current);
-
-  return Array.from(
-    new Set(props.map(p =>
-                   typeof object[p] === 'function' ? object[p] : null)
-                 .filter(p => p !== null)));
-}
-
-export type StateOf<M extends StateMachine<any>> =
-  M extends StateMachine<infer S> ? S : never;
+import { getAllMethods, StateOf } from './util';
 
 export type StateCombiner<M1 extends StateMachine<S1>,
   M2 extends StateMachine<S2>,

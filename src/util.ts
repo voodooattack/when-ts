@@ -1,13 +1,13 @@
-/** @internal */
 import { actionMetadataKey } from './actionMetadataKey';
-import { unless, inhibitedBy, when } from './index';
+import { inhibitedBy, StateMachine, unless, when } from './index';
 import { ActivationCond } from './interfaces';
 
+/** @ignore */
 export type MemberOf<T extends Object> = {
   (this: T, ...args: any[]): any;
 };
 
-/** @internal */
+/** @ignore */
 export type InputMapping<S, K extends keyof S, T extends S[K] = any> = {
   target: any;
   key: K;
@@ -19,7 +19,7 @@ export type InputMapping<S, K extends keyof S, T extends S[K] = any> = {
  * Unused for now, can be used by @inhibitWhen to lookup
  * inhibitor actions in the parent class(es) later on.
  */
-/** @internal */
+/** @ignore */
 // istanbul ignore next
 export function getInheritanceTree<T>(entity: ConstructorOf<T>): Function[] {
   const tree: Function[] = [entity as any];
@@ -34,17 +34,19 @@ export function getInheritanceTree<T>(entity: ConstructorOf<T>): Function[] {
   return tree;
 }
 
+/** @ignore */
 export type ConditionBuilder<S> = {
   (T: any, methodName: string | symbol, descriptor: PropertyDescriptor): ActivationCond<S>
-};
+}
+
 export type WhenDecoratorChainResult<S> = {
   andWhen(cond: ActivationCond<S> | true): WhenDecoratorWithChain<S>;
   unless(condition: ActivationCond<S>): WhenDecoratorWithChain<S>;
-  inhibitedBy<M>(exclude: keyof M): WhenDecoratorWithChain<S>;
+  inhibitedBy<M>(inhibitor: keyof M): WhenDecoratorWithChain<S>;
 }
 export type WhenDecoratorWithChain<S> = MethodDecorator & WhenDecoratorChainResult<S>;
 
-/** @internal */
+/** @ignore */
 export function chainWhen<S>(chainedHistory: ConditionBuilder<S>[]): WhenDecoratorWithChain<S>
 {
   return Object.assign(
@@ -62,8 +64,8 @@ export function chainWhen<S>(chainedHistory: ConditionBuilder<S>[]): WhenDecorat
  * @param {ActivationCond<S>[]} builders
  * @param {boolean} invert
  * @return {(_: any, _methodName: (string | symbol), descriptor: PropertyDescriptor) => void}
- * @internal
  */
+/** @ignore */
 function buildDecorator<S>(builders: ConditionBuilder<S>[]) {
   return function decorator(Type: any, methodName: string | symbol, descriptor: PropertyDescriptor)
   {
@@ -82,6 +84,26 @@ function buildDecorator<S>(builders: ConditionBuilder<S>[]) {
   };
 }
 
+/** @ignore */
 export type ConstructorOf<T extends Object> = T extends {
   new(...args: any[]): infer T
 } ? T : never;
+
+/** @ignore */
+export function getAllMethods(object: any): Function[] {
+  let current = object;
+  let props: string[] = [];
+
+  do {
+    props.push(...Object.getOwnPropertyNames(current));
+    current = Object.getPrototypeOf(current);
+  } while (current);
+
+  return Array.from(
+    new Set(props.map(p =>
+                   typeof object[p] === 'function' ? object[p] : null)
+                 .filter(p => p !== null)));
+}
+
+export type StateOf<M extends StateMachine<any>> =
+  M extends StateMachine<infer S> ? S : never;
