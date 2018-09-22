@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { actionMetadataKey, inputMetadataKey } from './actionMetadataKey';
 import { ActivationAction, ActivationCond, MachineState } from './interfaces';
 import { StateMachine } from './stateMachine';
-import { chainWhen, ConditionBuilder, ConstructorOf, getInheritanceTree, WhenDecoratorWithChain } from './util';
+import { chainWhen, ConditionBuilder, ConstructorOf, WhenDecoratorWithChain } from './util';
 
 export * from './stateMachine';
 export * from './interfaces';
@@ -14,14 +14,14 @@ export type InhibitedActionCallback<M extends StateMachine<any>, S extends Machi
  * Builds a condition for the final decorator.
  */
 
+// noinspection JSCommentMatchesSignature
 /**
  * A TypeScript decorator to declare a method as an action with one or more attached a conditions.
  * @param cond A condition to match against every tick or true.
- * @param chainedHistory
+ * @ignore chainedHistory
  */
 export function when<S extends MachineState>(
   cond: ActivationCond<S> | true,
-  /** @ignore */
   chainedHistory: ConditionBuilder<S>[] = []
 ): WhenDecoratorWithChain<S> {
   // convenience shortcut for `@when(true)`
@@ -30,23 +30,25 @@ export function when<S extends MachineState>(
 }
 
 
+// noinspection JSCommentMatchesSignature
 /**
  * A chainable TypeScript decorator to declare a method as an action with one or more inhibitor
  * conditions.
  * An inhibitor prevents the execution of the action for one tick if the others can activate.
  * @param {ActivationCond<S>[]} inhibitor The inhibiting member action.
- * @param chainedHistory
+ * @ignore chainedHistory
  * @return {WhenDecoratorWithChain<S>}
  */
 export function exceptWhen<S extends MachineState>(
   inhibitor: ActivationCond<S>,
-  /** @ignore */
   chainedHistory: ConditionBuilder<S>[] = []
 ): WhenDecoratorWithChain<S> {
-  return chainWhen<S>([() => function () {
-    // @ts-ignore
-    return !inhibitor.apply(this, arguments);
-  }, ...chainedHistory]);
+  return chainWhen<S>([
+    () => function () {
+      // @ts-ignore
+      return !inhibitor.apply(this, arguments);
+    }, ...chainedHistory
+  ]);
 }
 
 /**
@@ -57,33 +59,34 @@ export function exceptWhen<S extends MachineState>(
  * @param chainedHistory
  * @return {WhenDecoratorWithChain<S>}
  */
-export function inhibitedBy<S extends MachineState, M extends StateMachine<S>>(
-  inhibitorAction: string | symbol,
+export function inhibitedBy<S extends MachineState, M extends StateMachine<S> = any>(
+  inhibitorAction: keyof M,
   /** @ignore */
   chainedHistory: ConditionBuilder<S>[] = []
 ): WhenDecoratorWithChain<S> {
+  const findCond = (instance: M) => {
+    const method = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(instance), inhibitorAction);
+    if (!method || !method.value) {
+      throw new Error(`@inhibitedBy: could not find method ${inhibitorAction.toString()} in ${instance.constructor.name}`);
+    }
+    return Reflect.getMetadata(actionMetadataKey, method.value);
+  };
   return chainWhen<S>([
-    (type: ConstructorOf<M>, __: string | symbol, _descriptor: PropertyDescriptor) => {
-      const ancestors = getInheritanceTree(type);
-      let method;
-      for (let ancestor of ancestors) {
-        method = Object.getOwnPropertyDescriptor(ancestor, inhibitorAction);
-        if (method) break;
-      }
-      if (!method) {
-        throw new Error(`@excludingWhen: could not find method ${inhibitorAction.toString()} in ${type.constructor.name}`);
-      }
-      const cond: ActivationCond<S> = Reflect.getMetadata(actionMetadataKey, method.value);
-      if (!cond) {
-        throw new Error(`@excludingWhen: could not find condition for ${inhibitorAction.toString()}`);
-      }
+    (type: ConstructorOf<M>/*, __: string | symbol, _descriptor: PropertyDescriptor*/) => {
+      // FIXME: this could probably be done in a better way
+      let cond: ActivationCond<S>;
       return function () {
+        // ony evaluate the activation condition at run time
+        // @ts-ignore
+        cond = cond || findCond(this);
+        if (!cond) {
+          throw new Error(`@inhibitedBy: could not find activation condition for ${inhibitorAction.toString()} in ${type.constructor.name}`);
+        }
         // @ts-ignore
         return !cond.apply(this, arguments);
       };
     },
-    // inhibitors go up front for efficiency
-    ...chainedHistory
+    ...chainedHistory,
   ]);
 }
 

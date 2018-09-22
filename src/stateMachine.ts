@@ -98,10 +98,9 @@ export class StateMachine<S extends MachineState> {
       if (cond.call(this, current, this)) {
         const newState = body.call(this, current, this);
         if (newState) {
-          // if (this._exitState)
-          // Object.assign(this._exitState, newState);
-          // else
           this._history._mutateTick(newState);
+          if (this._exitState)
+            Object.assign(this._exitState, newState);
         }
         fired++;
       }

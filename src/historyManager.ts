@@ -79,7 +79,7 @@ export class HistoryManager<S extends MachineState> implements IHistory<S> {
    * @returns {Partial<S extends MachineState>}
    */
   get currentState(): Readonly<S> {
-    return this.records[this.records.length - 1];
+    return this.records[this.records.length - 1] || this._nextState;
   }
 
   /**

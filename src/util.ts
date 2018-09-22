@@ -7,7 +7,11 @@ export type MemberOf<T extends Object> = {
   (this: T, ...args: any[]): any;
 };
 
+/**
+ * Unused for now
+ */
 /** @internal */
+// istanbul ignore next
 export function getInheritanceTree<T>(entity: ConstructorOf<T>): Function[] {
   const tree: Function[] = [entity as any];
   const getPrototypeOf = (object: Function): void => {
@@ -27,7 +31,7 @@ export type ConditionBuilder<S> = {
 export type WhenDecoratorChainResult<S> = {
   andWhen(cond: ActivationCond<S> | true): WhenDecoratorWithChain<S>;
   exceptWhen(condition: ActivationCond<S>): WhenDecoratorWithChain<S>;
-  inhibitedBy(exclude: string|symbol): WhenDecoratorWithChain<S>;
+  inhibitedBy<M>(exclude: keyof M): WhenDecoratorWithChain<S>;
 }
 export type WhenDecoratorWithChain<S> = MethodDecorator & WhenDecoratorChainResult<S>;
 

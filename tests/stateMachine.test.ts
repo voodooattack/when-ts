@@ -1,4 +1,4 @@
-import { StateMachine, when } from '../src';
+import { exceptWhen, inhibitedBy, StateMachine, when } from '../src';
 
 describe('StateMachine', () => {
 
@@ -298,6 +298,129 @@ describe('StateMachine', () => {
 
     m.reset({ inc: 1, to: 10, count: 0 });
     expect(m.run()).toEqual({ inc: 1, to: 10, count: 10 });
+
+  });
+
+
+  it('@andWhen works', () => {
+
+    type State = {
+      count: number;
+      inc: number;
+      to: number;
+    }
+
+    class TestMachine extends StateMachine<State> {
+      constructor() {
+        super({ inc: 1, to: 10, count: 0 });
+        this.history.limit = 0;
+      }
+
+      @when<State>(s => s.count < s.to)
+      keepMe() {
+        /// empty rule to make the machine run to its conclusion
+      }
+
+      @when<State>(s => s.count < s.to)
+        .andWhen((_s, m) => m.history.tick % 2 === 0)
+      incrementOnceTillEqual(s: State) {
+        return { count: s.count + s.inc };
+      }
+
+      @when<State>(s => s.count >= s.to)
+      exitOnEqual(_: State, m: TestMachine) {
+        m.exit();
+      }
+    }
+
+    const m = new TestMachine();
+
+    expect(m.run()).toEqual({ inc: 1, to: 10, count: 10 });
+    expect(m.history.tick).toEqual(22);
+
+  });
+
+  it('@exceptWhen works', () => {
+
+    type State = {
+      count: number;
+      inc: number;
+      to: number;
+    }
+
+    class TestMachine extends StateMachine<State> {
+      constructor() {
+        super({ inc: 1, to: 10, count: 0 });
+        this.history.limit = 0;
+      }
+
+      @when<State>(true)
+        .exceptWhen(s => s.count >= s.to)
+      incrementOnceTillEqual(s: State) {
+        return { count: s.count + s.inc };
+      }
+
+      @when<State>(s => s.count >= s.to)
+      exitOnEqual(_: State, m: TestMachine) {
+        m.exit();
+      }
+    }
+
+    const m = new TestMachine();
+
+    while (m.history.tick < 3) {
+      m.step();
+    }
+
+    expect(m.history.currentState).toEqual({ inc: 1, to: 10, count: 2 });
+
+    m.reset({ inc: 2, to: 8, count: 0 });
+
+    expect(m.run()).toEqual({ inc: 2, to: 8, count: 8 });
+
+    m.reset({ inc: 1, to: 10, count: 0 });
+    expect(m.run()).toEqual({ inc: 1, to: 10, count: 10 });
+
+    m.reset({ inc: 1, to: 10, count: 0 });
+    expect(m.run()).toEqual({ inc: 1, to: 10, count: 10 });
+
+  });
+
+  it('@inhibitedBy works', () => {
+
+    type State = {
+      count: number;
+      inc: number;
+      to: number;
+    }
+
+    class TestMachine extends StateMachine<State> {
+      constructor() {
+        super({ inc: 1, to: 10, count: 0 });
+        this.history.limit = 0;
+      }
+
+      @when<State>(s => s.count < s.to)
+        .inhibitedBy('runsEveryOtherTime')
+      incrementOnceTillEqual(s: State) {
+        return { count: s.count + s.inc };
+      }
+
+      @when<State>((_s, m) => m.history.tick % 4 === 0)
+      runsEveryOtherTime(s: State, _m: TestMachine) {
+        return { count: s.count - s.inc };
+      }
+
+      @when<State>(s => s.count >= s.to)
+      exitOnEqual(_: State, m: TestMachine) {
+        m.exit();
+      }
+    }
+
+    const m = new TestMachine();
+
+    expect(m.run()).toEqual({ inc: 1, to: 10, count: 10 });
+    expect(m.history.tick).toEqual(20);
 
   });
 
