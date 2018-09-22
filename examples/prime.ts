@@ -32,18 +32,22 @@ interface PrimeState extends MachineState {
  */
 class PrimeMachine extends StateMachine<PrimeState> {
   constructor(public readonly numberOfPrimes: number) {
-    // pass the initial state to StateMachine<>
+    // pass the initial state to the StateMachine
     super({ counter: 2, current: 3, primes: [2], numberOfPrimes, times: [0] });
   }
 
   // increment the counter with every tick
-  @when(state => state.counter < state.current)
+  @when<PrimeState>(state => state.counter < state.current)
+  // this inhibit cause execution to end when we've found the required number of primes
+    .exceptWhen(state => state.primes.length >= state.numberOfPrimes)
   incrementCounterOncePerTick({ counter }: PrimeState) {
     return { counter: counter + 1 };
   }
 
   // this will only be triggered if the current number fails the prime check
-  @when(state => state.counter < state.current && state.current % state.counter === 0)
+  @when<PrimeState>(
+    state => state.counter < state.current && state.current % state.counter === 0)
+    .exceptWhen(state => state.primes.length >= state.numberOfPrimes)
   resetNotPrime({ current }: PrimeState) {
     return {
       counter: 2, // reset the counter
@@ -52,7 +56,8 @@ class PrimeMachine extends StateMachine<PrimeState> {
   }
 
   // this will only be triggered when all checks have passed (the number is a confirmed prime)
-  @when(state => state.counter === state.current)
+  @when<PrimeState>(state => state.counter === state.current)
+    .exceptWhen(state => state.primes.length >= state.numberOfPrimes)
   capturePrime({ primes, current, times }: PrimeState, { history }: PrimeMachine) {
     return {
       counter: 2, // reset the counter
@@ -60,12 +65,6 @@ class PrimeMachine extends StateMachine<PrimeState> {
       primes: [...primes, current], // store the new prime
       times: [...times, history.tick] // store the current tick count
     };
-  }
-
-  // this will cause execution to end when we've found the required number of primes
-  @when(state => state.primes.length >= state.numberOfPrimes)
-  exitMachine() {
-    this.exit();
   }
 }
 

@@ -187,6 +187,8 @@ See the [API documentation](https://voodooattack.github.io/when-ts/) for more in
 
 ### Usage
 
+Some examples are located in in [examples/](examples).
+
 - Simple example:
 
 ```typescript
@@ -201,17 +203,17 @@ class TestMachine extends EventMachine<State> {
     super({ value: 0 }); // pass the initial state to the event machine
   }
 
-  @when(true) // define a condition for this block to execute, in this case always
+  @when<State>(true) // define a condition for this block to execute, in this case always
   reportOncePerTick(s: State, m: TestMachine) {
     console.log(`beginning tick #${m.history.tick} with state`, s);
   }
 
-  @when(state => state.value < 5) // this only executes when `value` is less than 5
+  @when<State>(state => state.value < 5) // this only executes when `value` is less than 5
   incrementOncePerTick(s: State) { // increment `value` once per tick
     return { value: s.value + 1 };
   }
 
-  @when(state => state.value >= 5) // this will only execute when `value` is >= 5
+  @when<State>(state => state.value >= 5) // this will only execute when `value` is >= 5
   exitWhenDone(s: State, m: TestMachine) {
     console.log(`finished on tick #${m.history.tick}, exiting`, s);
     m.exit(); // exit the state machine
@@ -227,6 +229,8 @@ console.log('state machine exits with:', result);
 
 - The same prime machine from earlier, implemented in TypeScript:
 
+A better implementation exists in [examples/prime.ts](examples/prime.ts)!
+
 ```typescript
 import { StateMachine, when, MachineState } from 'when-ts';
 
@@ -241,24 +245,24 @@ class PrimeMachine extends StateMachine<PrimeState> {
     super({ counter: 2, current: 3, primes: [2] });
   }
 
-  @when(state => state.counter < state.current)
+  @when<PrimeState>(state => state.counter < state.current)
   incrementCounterOncePerTick({ counter }: PrimeState) {
     return { counter: counter + 1 };
   }
 
-  @when(state => state.counter < state.current && state.current % state.counter === 0)
+  @when<PrimeState>(state => state.counter < state.current && state.current % state.counter === 0)
   resetNotPrime({ counter, primes, current }: PrimeState) {
     return { counter: 2, current: current + 1 };
   }
 
-  @when(state => state.counter >= state.current)
+  @when<PrimeState>(state => state.counter >= state.current)
   capturePrime({ counter, primes, current }: PrimeState) {
     return { counter: 2, current: current + 1, primes: [...primes, current] };
   }
 
-  @when(state => state.primes.length >= 10)
-  exitMachine() {
-    this.exit();
+  @when<PrimeState>(state => state.primes.length >= 10)
+  exitMachine(_, m: StateMachine<PrimeState>) {
+    m.exit();
   }
 }
 
@@ -278,6 +282,8 @@ All contributions and pull requests are welcome.
 If you have something to suggest or an idea you'd like to discuss, then please submit an issue or a pull request. 
 
 Please make sure that test coverage does not drop below the set limits in `package.json`.
+
+*Note: Active development happens in the `devel` branch.*
 
 ### License (MIT)
 

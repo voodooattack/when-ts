@@ -19,7 +19,7 @@ describe('Recombination', () => {
       super({ valueA: '' });
     }
 
-    @when((_, m) => m.history.tick <= 5)
+    @when<StateA>((_, m) => m.history.tick <= 5)
     incrementAOncePerTick(s: StateA) {
       return { valueA: s.valueA + (s.sharedValue || 'a') };
     }
@@ -31,7 +31,7 @@ describe('Recombination', () => {
       super({ valueB: '' });
     }
 
-    @when((_, m) => m.history.tick <= 10)
+    @when<StateB>((_, m) => m.history.tick <= 10)
     incrementBOncePerTick(s: StateB) {
       return { valueB: s.valueB + (s.sharedValue || 'b') };
     }

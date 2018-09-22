@@ -17,13 +17,13 @@ describe('StateMachine', () => {
         super({ value: 0 });
       }
 
-      @when(state => state.value >= 5)
+      @when<State>(state => state.value >= 5)
       exitWhenDone(_: State, m: TestMachine) {
         expect(m.history.tick).toEqual(6);
         m.exit();
       }
 
-      @when(state => state.value < 5)
+      @when<State>(state => state.value < 5)
       incrementOncePerTick(s: State) {
         return { value: s.value + 1 };
       }
@@ -48,12 +48,12 @@ describe('StateMachine', () => {
         super({ value: 0, cycle: 0 });
       }
 
-      @when(true)
+      @when<State>(true)
       incrementOncePerTick(s: State) {
         return { value: s.value + 1 };
       }
 
-      @when((_, machine) => machine.history.tick >= 5)
+      @when<State>((_, machine) => machine.history.tick >= 5)
       exitWhenDone(s: State, m: TestMachine) {
         if (m.history.tick >= 5 && s.cycle < 10) { // rewind the program 10 times
           // rewind the state machine with a side-effect
@@ -78,18 +78,17 @@ describe('StateMachine', () => {
       value: number;
     }
 
-
     class TestMachine extends StateMachine<State> {
       constructor() {
         super({ value: 0 });
       }
 
-      @when(s => s.value < 5)
+      @when<State>(s => s.value < 5)
       incrementOncePerTick(s: State) {
         return { value: s.value + 1 };
       }
 
-      @when(state => state.value >= 5)
+      @when<State>(state => state.value >= 5)
       exitWhenDone(s: State, m: TestMachine) {
         if (s.value >= 100) {
           m.exit();
@@ -126,7 +125,7 @@ describe('StateMachine', () => {
         return { value: s.value! + 1 };
       }
 
-      @when(state => state.value >= 5)
+      @when<State>(state => state.value !== null && state.value >= 5)
       exitWhenDone(_: State, m: TestMachine) {
         // never do this in reality, never reference anything other than the state!
         if (rewinds++ > 100) {
@@ -158,13 +157,13 @@ describe('StateMachine', () => {
         super({ value: 0 });
       }
 
-      @when(s => s.value < 3)
+      @when<State>(s => s.value < 3)
       incrementOncePerTick(s: State) {
         series.push(s.value);
         return { value: s.value + 1 };
       }
 
-      @when(state => state.value >= 3)
+      @when<State>(state => state.value >= 3)
       exitWhenDone(_: State, m: TestMachine) {
         // never do this in reality, never reference anything other than the state!
         if (++rewinds > 2)
@@ -271,12 +270,12 @@ describe('StateMachine', () => {
         this.history.limit = 0;
       }
 
-      @when(s => s.count < s.to)
+      @when<State>(s => s.count < s.to)
       incrementOnceTillEqual(s: State) {
         return { count: s.count + s.inc };
       }
 
-      @when(s => s.count >= s.to)
+      @when<State>(s => s.count >= s.to)
       exitOnEqual(_: State, m: TestMachine) {
         m.exit();
       }
