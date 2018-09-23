@@ -9,6 +9,8 @@
 
 ### Introduction
 
+**The latest version of this spec can be found in the [`devel` branch](https://github.com/voodooattack/when-ts/blob/devel/README.md), please read the spec there if that's what you're after.** 
+
 This is a reference implementation for a new software design pattern that allows for composable event-based state machines with complete (including temporal) control over their state.
 
 Please note that this spec and reference implementation are still in alpha and the specs are not yet final. 
@@ -98,7 +100,7 @@ This prevents the program from running forever by default, and can be disabled a
 
 #### External inputs
 
-`when` supports external inputs via the `@input` decorator. External inputs are readonly variables that are recorded as part of the state, but never manually  
+`when` supports external inputs via the `@input` decorator. External inputs are readonly variables that are recorded as part of the state, but never manually updated.  
 
 #### Note on Recombination
 
