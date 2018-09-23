@@ -13,7 +13,7 @@
     "prepublish": "npm run build && npm run typedoc && npm run test",
     "test": "jest --coverage",
     "test:coveralls": "cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js",
-    "commit": "npm run test && git-cz"
+    "commit": "git-cz"
   },
   "engines": {
     "node": ">=8.12.0"

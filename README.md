@@ -23,7 +23,6 @@ Please note that this spec and reference implementation are still in alpha and t
 
 Here are some possible expansions on the idea. These require further discussion before they're mature enough to include:
 
-- Inhibitors that can suppress an action: these would inhibit a certain event and prevent it from triggering. Alternatively, the possibility for an action to disable/inhibit another action during a tick could be introduced. 
 - Sexual reproduction of state machines: possible use of a similar mechanic to the one used in organic cells to combine two different programs (DNA) by randomly selecting an equal half of each.  
 - Mutation: Possible, but difficult since we can't swap code like basepairs. The simplest possible mutation would be a random swap of conditions between two randomly selected actions. 
 
@@ -31,7 +30,7 @@ This would all lead to more emergent behaviour in agents produced by recombinati
 
 #### Pattern
 
-*The following is a description of the pattern itself, and not this specific implementation.*
+*The following is a description of the pattern itself, and not any specific implementation.*
 
 This pattern itself is completely generic and can be implemented in any programming language available today with varying degrees of ease, depending on the features of the target language.
 
@@ -47,7 +46,7 @@ All when programs consist of `condition` and `action` pairs. The condition is a 
 
 When a `condition` evaluates to `true`, the associated `action` is then executed. 
 
-`actions` can modify the variables in the global state, but any modifications they make during a `tick` will be applied to the `state` only on the next `tick`.
+`actions` can modify the variables in the current state, but any modifications they make during a `tick` will be applied to the `state` only on the next `tick`.
 
 If a conflict between two or more `actions` trying to modify the same variable during a `tick` happens, the last `action` to be invoked will override the previous value set by any earlier `actions` during the current `tick`.   
 
@@ -122,34 +121,52 @@ Here are some abstract syntax examples for a full pseudo-language based on this 
 
 You can read about the original idea (slightly outdated) [in this proposal](https://gist.github.com/voodooattack/ccb1d18112720a8de5be660dbb80541c).
 
-This is mostly pseudo-javascript with two extra `when` and `exit` keywords, and using a hypothetical decorator syntax to specify action metadata. The decorators are completely optional, and the currently proposed ones are:
+This is mostly pseudo-javascript with two extra `when` and `exit` keywords, and using a hypothetical decorator syntax to specify action metadata. 
 
-- `@forever()` Must be defined a the start of the program, and tells the state machine not to halt due to inactivity. In this case, the machine must explicitly end its execution via a call to `exit()`. Accepts no arguments. 
+The decorators are completely optional, and the currently proposed ones are:
+
+##### Action decorators:
+
+Action decorators may only precede a `when` block, and will only apply to that block.
+
 - `@name('action_name')` Associate a name with an action to be make it possible for inhibitors to reference it elsewhere. Can only be used once per action.
+
 - `@unless(expression)` Prevents this action from triggering if `expression` evaluates to true. Can be used multiple times with the same action.
+
 - `@inhibitedBy('action_name')` Prevents this action from triggering if another by `action_name` will execute during this tick. Can be used multiple times with the same action and different inhibitors.
 
-The last three decorators may only precede a `when` block, and will only apply to that `when` block. 
+- `@priority(number)` Sets a numeric priority for the action. This will influence the order of evaluation inside the main loop. Actions with higher priority values are evaluated last, meaning that they will take precedence if there's a conflict from multiple actions trying to update the same variable during the same tick.    
 
-#### Examples
+##### Control decorators:
 
-##### A prime number generator: 
+- `@forever()` Must be defined at the very beginning of the program, and tells the state machine not to halt due to inactivity. In this case, the machine must explicitly end its execution via a call to `exit()`. Accepts no arguments.
 
-```javascript
+- `@input('name', policy?: 'once'|'always'|function)` Implementation dependent. Defaults to `once`. Must precede a constant/readonly variable declaration. Tells `when` to poll an external value and record its value as part of the state. The interpretation of what an input is depends on the implementation. It can be a command-line argument, a memory address, or an hardware interrupt. The `policy` argument specifies how frequently the polling is done: `once` is exactly once at startup, `always` is once per `tick`. `function` is user-defined function that implements custom logic and returns a boolean.    
+
+##### Examples
+
+- A prime number generator: 
+  
+```typescript
+// maximum number of primes to brute-force before exiting, 
+// note that this variable is a readonly external input
+@input('maxPrimes') 
+const maxPrimes: number = 10; 
+
 let counter = 2; // starting counting up from 2
 let current = 3; // start looking at 3
 let primes = []; // array to store saved primes
 
 // increment the counter with every tick till we hit the potential prime
 @name('increment')
-@unless(primes.length >= 10)
+@unless(primes.length >= maxPrimes)
 when(counter < current) {
   counter++;
 }
 
 // not a prime number, reset and increment current search
 @name('resetNotAPrime')
-@unless(primes.length >= 10)
+@unless(primes.length >= maxPrimes)
 when(counter < current && current % counter === 0) {
   counter = 2;
   current++;
@@ -157,7 +174,7 @@ when(counter < current && current % counter === 0) {
 
 // if this is ever triggered, then we're dealing with a prime.
 @name('capturePrime')
-@unless(primes.length >= 10)
+@unless(primes.length >= maxPrimes)
 when(counter >= current) {
   // save the prime
   primes.push(current);
@@ -204,10 +221,8 @@ Additionally, you must add the following to your project's `tsconfig.json` for t
 
 ```json
 {
-  "compilerOptions": {
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
-  }  
+  "experimentalDecorators": true,
+  "emitDecoratorMetadata": true
 }
 ```
 
@@ -219,7 +234,7 @@ See the [API documentation](https://voodooattack.github.io/when-ts/) for more in
 
 Some examples are located in in [examples/](examples).
 
-#### Simple example:
+- Simple example:
 
 ```typescript
 import { EventMachine, when } from 'when-ts';
@@ -238,12 +253,12 @@ class TestMachine extends EventMachine<State> {
     console.log(`beginning tick #${m.history.tick} with state`, s);
   }
 
-  @when<State>(state => state.value < 5) currentValue
-  incrementOncePerTick(s: State) { currentValue
+  @when<State>(state => state.value < 5)
+  incrementOncePerTick(s: State) {
     return { value: s.value + 1 };
   }
 
-  @when<State>(state => state.value >= 5) currentValue
+  @when<State>(state => state.value >= 5) 
   exitWhenDone(s: State, m: TestMachine) {
     console.log(`finished on tick #${m.history.tick}, exiting`, s);
     m.exit(); // exit the state machine
@@ -257,7 +272,7 @@ const result = test.run(); // this will block until the machine exits, unlike `.
 console.log('state machine exits with:', result);
 ```
 
-#### The same prime machine from earlier, implemented in TypeScript:
+- The same prime machine from earlier, implemented in TypeScript:
 
 A better implementation exists in [examples/prime.ts](examples/prime.ts)!
 
@@ -265,14 +280,15 @@ A better implementation exists in [examples/prime.ts](examples/prime.ts)!
 import { StateMachine, when, MachineState } from 'when-ts';
 
 interface PrimeState extends MachineState {
+  readonly maxPrimes: number;
   counter: number;
   current: number;
   primes: number[];
 }
 
 class PrimeMachine extends StateMachine<PrimeState> {
-  constructor() {
-    super({ counter: 2, current: 3, primes: [2] });
+  constructor(maxPrimes: number) {
+    super({ counter: 2, current: 3, primes: [2], maxPrimes });
   }
 
   @when<PrimeState>(state => state.counter < state.current)
@@ -290,13 +306,13 @@ class PrimeMachine extends StateMachine<PrimeState> {
     return { counter: 2, current: current + 1, primes: [...primes, current] };
   }
 
-  @when<PrimeState>(state => state.primes.length >= 10)
+  @when<PrimeState>(state => state.primes.length >= state.maxPrimes)
   exitMachine(_, m: StateMachine<PrimeState>) {
     m.exit();
   }
 }
 
-const primeMachine = new PrimeMachine();
+const primeMachine = new PrimeMachine(10);
 
 const result = primeMachine.run();
 
@@ -311,9 +327,7 @@ All contributions and pull requests are welcome.
 
 If you have something to suggest or an idea you'd like to discuss, then please submit an issue or a pull request. 
 
-Please make sure that test coverage does not drop below the set limits in `package.json`.
-
-*Note: Active development happens in the `devel` branch.*
+Note: All active development happens in the `devel` branch. Please commit your changes using `npm run commit` to trigger `conventional-changelog`. 
 
 ### License (MIT)
 
