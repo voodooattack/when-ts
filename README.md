@@ -80,9 +80,9 @@ This prevents the program from running forever by default, and can be disabled a
 
 - Events can access the next state being actively mutated by the current tick through the read-only property `history.nextState`.
 
-- The state can be rewound to a previously recorded state using the `history.rewind(n)` method. `history.rewind(2)` will cause the program to rewind by two full ticks (the tick counter will be decremented as needed). If this occurs inside an event handler, further events will not be processed.
+- The state can be rewound to a previously recorded state using the `history.rewind(t)` method. `history.rewind(2)` will cause the program to rewind to the discrete tick `t` (the tick counter will be decremented as needed). If this occurs inside an event handler, further events will not be processed.
 
-- `history.rewind` accepts a second parameter with optional variable to pass after rewinding to the past state, `history.rewind(2, { backToTheFuture: true })` will rewind and mutate the past state by setting the variable `backToTheFuture` to `true`.
+- `history.rewind` accepts a second parameter with optional variable to pass after rewinding to the past state, `history.rewind(2, { backToTheFuture: true })` will rewind to tick `2` and mutate the past state by setting the variable `backToTheFuture` to `true`.
 
 - State history can be erased at any time using `history.clear();`.
 
