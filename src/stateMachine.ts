@@ -1,13 +1,15 @@
 import { actionMetadataKey, inputMetadataKey } from './actionMetadataKey';
 import { HistoryManager } from './historyManager';
-import { ActivationAction, ActivationCond, MachineState } from './index';
+import { ActivationAction, ActivationCond, MachineInputSource, MachineState } from './index';
 import { IHistory } from './interfaces';
-import { getAllMethods, StateOf } from './util';
+import { getAllMethods, InputOf, StateOf } from './util';
 
-export type StateCombiner<M1 extends StateMachine<S1>,
-  M2 extends StateMachine<S2>,
+export type StateCombiner<M1 extends StateMachine<S1, I1>,
+  M2 extends StateMachine<S2, I2>,
   S1 extends MachineState = StateOf<M1>,
-  S2 extends MachineState = StateOf<M2>> =
+  S2 extends MachineState = StateOf<M2>,
+  I1 extends MachineState = InputOf<M1>,
+  I2 extends MachineState = InputOf<M2>> =
   {
     (params: {
         first: M1,
@@ -20,20 +22,23 @@ export type StateCombiner<M1 extends StateMachine<S1>,
 /**
  * Your state machine should inherit the `StateMachine<YourStateInterface>` class.
  */
-export class StateMachine<S extends MachineState> {
+export class StateMachine<S extends MachineState, I extends MachineInputSource = MachineInputSource> {
   /**
    * The active state machine program.
    * @type {Map}
    * @private
    */
-  private _program: Map<ActivationCond<S>,
-    ActivationAction<S, any>> = new Map();
+  private _program: Map<ActivationCond<S, I>,
+    ActivationAction<S, I, any>> = new Map();
+  private readonly _history: HistoryManager<S, I, this>;
+  private _exitState?: Readonly<S & I>;
 
   /**
    * Constructor, requires an initial state.
-   * @param {S} _initialState
+   * @param {S} initialState The initial state for this machine.
+   * @param inputSource Machine inputs.
    */
-  protected constructor(_initialState: S) {
+  protected constructor(initialState: S, inputSource?: I) {
     const properties = getAllMethods(this);
     for (let m of properties) {
       if (Reflect.hasMetadata(actionMetadataKey, m)) {
@@ -41,29 +46,10 @@ export class StateMachine<S extends MachineState> {
         this._program.set(cond, m as any);
       }
     }
-    // load any inputs defined through the `@input` decorator.
-    const inputs = Reflect.getMetadata(inputMetadataKey, Object.getPrototypeOf(this));
-    this._history = new HistoryManager<S>(
-      this, _initialState, inputs || new Set()
+    this._history = new HistoryManager<S, I, this>(this, initialState, inputSource,
+      inputSource ? Reflect.getMetadata(inputMetadataKey, inputSource) : []
     );
   }
-
-  /**
-   *
-   * @type {HistoryManager<S extends MachineState>}
-   * @private
-   */
-  private _history: HistoryManager<S>;
-
-  /**
-   * Returns the history manager object.
-   * @returns {HistoryManager<S extends MachineState>}
-   */
-  get history(): IHistory<S> {
-    return this._history;
-  }
-
-  private _exitState?: Readonly<S>;
 
   /**
    * The state at program exit. Returns `undefined` unless the program has ended.
@@ -73,25 +59,38 @@ export class StateMachine<S extends MachineState> {
     return this._exitState;
   }
 
+  get history(): IHistory<S> {
+    return this._history;
+  }
+
   /**
    * Advance a single tick and return.
    * @returns {number} Number of actions fired during this tick.
    */
   step() {
     let fired = 0;
-    const current = this._history.currentState
+    if(this.history.tick < 1)
+      this._history._nextTick();
+    const currentTick = this.history.tick;
     for (let [cond, body] of this._program) {
-      if (cond.call(this, current, this)) {
-        const newState = body.call(this, current, this);
+      if (this.history.tick !== currentTick && !this.exitState) {
+        // abort current tick on rewind.
+        // always report at least 1 action fired in this case.
+        return Math.max(1, fired);
+      }
+      if (this.exitState)
+        break;
+      if (cond.call(this, this.history.currentState, this)) {
+        const newState = body.call(this, this.history.currentState, this);
         if (newState) {
           this._history._mutateTick(newState);
-          if (this._exitState)
-            Object.assign(this._exitState, newState);
         }
         fired++;
       }
     }
     this._history._nextTick();
+    if (fired === 0)
+      this._exitState = this.history.currentState as any;
     return fired;
   }
 
@@ -101,17 +100,14 @@ export class StateMachine<S extends MachineState> {
    * @returns {Readonly<S extends MachineState>|null} Returns the machine's exit state,
    *  or null if the machine halted.
    */
-  run(forever: boolean = false): S {
+  run(forever: boolean = false): Readonly<S & I> {
     while (!this._exitState) {
       const change = this.step();
       if (!forever && !change) {
         break;
       }
     }
-    return this._exitState || Object.assign(
-      Object.create(null),
-      this._history.nextState
-    );
+    return this._exitState || this._history.currentState;
   }
 
   /**
@@ -130,11 +126,11 @@ export class StateMachine<S extends MachineState> {
    *  return from `.run.`
    */
   exit(exitState?: Readonly<S>) {
-    if (!this._exitState) {
-      this._exitState = exitState || Object.assign(
-        Object.create(null),
-        this._history.currentState
-      );
+    if (exitState) {
+      this._exitState = Object.assign(Object.create(null), this.history.currentState, exitState);
+    }
+    else {
+      this._exitState = this.history.currentState as any;
     }
   }
 
@@ -158,7 +154,7 @@ export class StateMachine<S extends MachineState> {
     other: T,
     precedence: 'this' | 'other' = 'this',
     initialState: (OS & S) |
-      StateCombiner<StateMachine<S>, StateMachine<OS>> |
+      StateCombiner<StateMachine<S, any>, StateMachine<OS, any>> |
       'current' | 'initial'      = 'initial'
   )
   {

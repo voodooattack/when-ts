@@ -1,6 +1,6 @@
 {
   "name": "when-ts",
-  "version": "1.0.0-alpha.3",
+  "version": "1.0.0-alpha.4",
   "description": "When: A software design pattern for building event-based recombinant state machines.",
   "main": "dist/lib/src/index.js",
   "types": "dist/types/src/index.d.ts",
@@ -71,15 +71,14 @@
   "keywords": [
     "state",
     "abstract",
-    "design-pattern",
-    "state-machine",
+    "design pattern",
+    "state machine",
     "typescript",
     "decorator",
     "event-based",
-    "gene",
-    "dna",
     "recombination",
-    "immutable"
+    "immutable",
+    "temporal-model"
   ],
   "config": {
     "commitizen": {

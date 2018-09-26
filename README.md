@@ -131,11 +131,11 @@ The decorators are completely optional, and the currently proposed ones are:
 
 Action decorators may only precede a `when` block, and will only apply to that block.
 
-- `@name('action_name')` Associate a name with an action to be make it possible for inhibitors to reference it elsewhere. Can only be used once per action.
+- `@name(action_name)` Associate a name with an action to be make it possible for inhibitors to reference it elsewhere. Can only be used once per action.
 
 - `@unless(expression)` Prevents this action from triggering if `expression` evaluates to true. Can be used multiple times with the same action.
 
-- `@inhibitedBy('action_name')` Prevents this action from triggering if another by `action_name` will execute during this tick. Can be used multiple times with the same action and different inhibitors.
+- `@inhibitedBy(action_name)` Prevents this action from triggering if another by `action_name` will execute during this tick. Can be used multiple times with the same action and different inhibitors.
 
 - `@priority(number)` Sets a numeric priority for the action. This will influence the order of evaluation inside the main loop. Actions with higher priority values are evaluated last, meaning that they will take precedence if there's a conflict from multiple actions trying to update the same variable during the same tick.    
 
@@ -143,7 +143,7 @@ Action decorators may only precede a `when` block, and will only apply to that b
 
 - `@forever()` Must be defined at the very beginning of the program, and tells the state machine not to halt due to inactivity. In this case, the machine must explicitly end its execution via a call to `exit()`. Accepts no arguments.
 
-- `@input('name', policy?: 'once'|'always'|function)` Implementation dependent. Defaults to `once`. Must precede a constant/readonly variable declaration. Tells `when` to poll an external value and record its value as part of the state. The interpretation of what an input is depends on the implementation. It can be a command-line argument, a memory address, or an hardware interrupt. The `policy` argument specifies how frequently the polling is done: `once` is exactly once at startup, `always` is once per `tick`. `function` is user-defined function that implements custom logic and returns a boolean.    
+- `@input(policy?: 'once'|'always'|function, input_name?)` Implementation dependent. Defaults to `once`. Must precede a constant/readonly variable declaration. Tells `when` to poll an external value and record its value as part of the state. The interpretation of what an input is depends on the implementation. It can be a command-line argument, a memory address, or an hardware interrupt. The `policy` argument specifies how frequently the polling is done: `once` is exactly once at startup, `always` is once per `tick`. `function` is user-defined function that implements custom logic and returns a boolean. 
 
 ##### Examples
 
@@ -236,16 +236,16 @@ See the [API documentation](https://voodooattack.github.io/when-ts/) for more in
 
 Some examples are located in in [examples/](examples).
 
-- Simple example:
+#### Simple example:
 
 ```typescript
-import { EventMachine, when } from 'when-ts';
+import { StateMachine, MachineState, when } from 'when-ts';
 
-type State = { // the state of our program
+interface State extends MachineState { // the state of our program
   value: number; // a counter that will be incremented once per tick
 }
 
-class TestMachine extends EventMachine<State> {
+class TestMachine extends StateMachine<State> {
   constructor() {
     super({ value: 0 }); // pass the initial state to the event machine
   }
@@ -274,47 +274,61 @@ const result = test.run(); // this will block until the machine exits, unlike `.
 console.log('state machine exits with:', result);
 ```
 
-- The same prime machine from earlier, implemented in TypeScript:
+#### Brute-forcing primes 
+
+The same prime machine from earlier, implemented in TypeScript. This one uses the `input` feature.
 
 A better implementation exists in [examples/prime.ts](examples/prime.ts)!
 
 ```typescript
-import { StateMachine, when, MachineState } from 'when-ts';
+import { StateMachine, when, input, MachineState, MachineInputSource, StateObject } from 'when-ts';
 
 interface PrimeState extends MachineState {
-  readonly maxPrimes: number;
   counter: number;
   current: number;
   primes: number[];
 }
 
-class PrimeMachine extends StateMachine<PrimeState> {
-  constructor(maxPrimes: number) {
-    super({ counter: 2, current: 3, primes: [2], maxPrimes });
+interface IPrimeInputSource extends MachineInputSource {
+  readonly maxPrimes: number; 
+}
+
+class PrimeInputSource implements IPrimeInputSource {
+  @input('once') // mark as an input that's only read during startup.
+  public readonly primes: number;
+  constructor(primes = 10) {
+    this.primes = primes;
+  }
+}
+
+class PrimeMachine extends StateMachine<PrimeState, IPrimeInputSource> {
+  constructor(inputSource: IPrimeInputSource) {
+    super({ counter: 2, current: 3, primes: [2] }, inputSource);
   }
 
-  @when<PrimeState>(state => state.counter < state.current)
-  incrementCounterOncePerTick({ counter }: PrimeState) {
+  @when<PrimeState, IPrimeInputSource>(state => state.counter < state.current)
+  incrementCounterOncePerTick({ counter }: StateObject<PrimeState, IPrimeInputSource>) {
     return { counter: counter + 1 };
   }
 
-  @when<PrimeState>(state => state.counter < state.current && state.current % state.counter === 0)
-  resetNotPrime({ counter, primes, current }: PrimeState) {
+  @when<PrimeState, IPrimeInputSource>(state => state.counter < state.current && state.current % state.counter === 0)
+  resetNotPrime({ counter, primes, current }: StateObject<PrimeState, IPrimeInputSource>) {
     return { counter: 2, current: current + 1 };
   }
 
-  @when<PrimeState>(state => state.counter >= state.current)
-  capturePrime({ counter, primes, current }: PrimeState) {
+  @when<PrimeState, IPrimeInputSource>(state => state.counter >= state.current)
+  capturePrime({ counter, primes, current }: StateObject<PrimeState, IPrimeInputSource>) {
     return { counter: 2, current: current + 1, primes: [...primes, current] };
   }
 
-  @when<PrimeState>(state => state.primes.length >= state.maxPrimes)
+  @when<PrimeState, IPrimeInputSource>(state => state.primes.length >= state.maxPrimes)
   exitMachine(_, m: StateMachine<PrimeState>) {
     m.exit();
   }
 }
 
-const primeMachine = new PrimeMachine(10);
+const inputSource = new PrimeInputSource(10);
+const primeMachine = new PrimeMachine(inputSource);
 
 const result = primeMachine.run();
 

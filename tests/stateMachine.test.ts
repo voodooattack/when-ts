@@ -1,4 +1,4 @@
-import { input, StateMachine, when } from '../src';
+import { input, MachineInputSource, StateMachine, StateObject, unless, when } from '../src';
 
 describe('StateMachine', () => {
 
@@ -15,6 +15,7 @@ describe('StateMachine', () => {
 
       @when<State>(state => state.value >= 5)
       exitWhenDone(_: State, m: TestMachine) {
+        // this should execute on tick 6
         expect(m.history.tick).toEqual(6);
         m.exit();
       }
@@ -44,27 +45,33 @@ describe('StateMachine', () => {
         super({ value: 0, cycle: 0 });
       }
 
-      @when<State>(true)
+      @when<State>(s => s.value < 5)
       incrementOncePerTick(s: State) {
         return { value: s.value + 1 };
       }
 
-      @when<State>((_, machine) => machine.history.tick >= 5)
+      @unless<State>(s => s.value < 5)
       exitWhenDone(s: State, m: TestMachine) {
-        if (m.history.tick >= 5 && s.cycle < 10) { // rewind the program 10 times
+        if (s.cycle < 10) { // rewind the program 10 times
           // rewind the state machine with a side-effect
           m.history.rewind(Infinity, { cycle: s.cycle + 1 });
         }
-        else if (s.cycle >= 10) {
+        else {
+          // exit the state machine with the currently saved state
+          // note that any state mutations applied within this tick
+          // will be ignored!
           m.exit();
-        } // exit the state machine
+          // // you can mitigate this behaviour by using:
+          // m.exit(m.history.nextState as State);
+        }
       }
     }
 
     const test = new TestMachine();
-    const result = test.run();
+    const result = test.run(true);
 
-    expect(result).toEqual({ value: 4, cycle: 10 });
+    // expected: the state machine will exit with the last *saved* state, with value equal to 5.
+    expect(result).toEqual({ value: 5, cycle: 10 });
 
   });
 
@@ -103,7 +110,7 @@ describe('StateMachine', () => {
   });
 
 
-  it('Can handle infinite resets', () => {
+  it('Can handle resets', () => {
 
     type State = {
       value: number | null;
@@ -146,23 +153,24 @@ describe('StateMachine', () => {
     }
 
     let rewinds = 0;
-    let series: number[] = [];
+    let series: [number, number][] = [];
 
     class TestMachine extends StateMachine<State> {
       constructor() {
         super({ value: 0 });
       }
 
-      @when<State>(s => s.value < 3)
-      incrementOncePerTick(s: State) {
-        series.push(s.value);
+      @when<State>(true)
+      incrementOncePerTick(s: State, m: TestMachine) {
+        // never do this in reality, never reference or modify anything other than the state!
+        series.push([s.value, m.history.tick]);
         return { value: s.value + 1 };
       }
 
-      @when<State>(state => state.value >= 3)
+      @when<State>((_, machine) => machine.history.tick === 4)
       exitWhenDone(_: State, m: TestMachine) {
-        // never do this in reality, never reference anything other than the state!
-        if (++rewinds > 2)
+        // never do this in reality, never reference or modify anything other than the state!
+        if (++rewinds >= 2)
         {
           m.exit();
           return;
@@ -172,10 +180,9 @@ describe('StateMachine', () => {
     }
 
     const test = new TestMachine();
-    const result = test.run();
+    const result = test.run(true);
 
-    expect(result).toEqual({ value: 3 });
-    expect(series).toEqual([0, 1, 2, 1, 2, 1, 2]);
+    expect(series).toEqual([[0, 1], [1, 2], [2, 3], [3, 4], [1, 2], [2, 3], [3, 4]]);
 
   });
 
@@ -243,9 +250,8 @@ describe('StateMachine', () => {
     const m = new TestMachine();
 
     while (!m.exitState) {
-      expect(m.history.records.length).toBeLessThanOrEqual(1);
-      expect(m.history.records).toHaveLength(1);
       m.step();
+      expect(m.history.records).toHaveLength(1);
     }
 
     expect(m.exitState).toEqual({ value: 4 });
@@ -421,47 +427,159 @@ describe('StateMachine', () => {
 
   it('@input works', () => {
 
-    type FactorialState = {
+    interface IFactorialInputs extends MachineInputSource {
       readonly externalCounter: number;
+    }
+
+    class FactorialInputs implements IFactorialInputs {
+      internalCounter: number = 0;
+
+      // polled with every tick.
+      @input<FactorialState, FactorialInputs>('always')
+      get externalCounter() {
+        return this.internalCounter;
+      }
+
+      update() { this.internalCounter++; }
+    }
+
+    type FactorialState = {
       currentValue: number;
     }
 
-    let externalCounter = 0;
-
-    class FactorialMachine extends StateMachine<FactorialState> {
+    class FactorialMachine extends StateMachine<FactorialState, IFactorialInputs> {
 
       /// define an external counter, this can be the last known value for a
       // real-time signal, the state of an external system, the health of an
       // NPC, or anything not computationally expensive that can be
-      constructor() {
+      constructor(inputSource: IFactorialInputs) {
         /* we set this external input here to satisfy TypeScript,
          * but it will be overwritten anyway */
-        super({ currentValue: 1, externalCounter });
+        super({ currentValue: 1 }, inputSource);
       }
 
-      // polled with every tick.
-      @input<FactorialState>('externalCounter')
-      get externalCounterProperty() { // the property name doesn't have to match
-        return externalCounter++;
+      @when<FactorialState, FactorialInputs>((_, machine) => machine.history.tick <= 10)
+      tryToOverwriteInput() {
+        return { externalCounter: null };
       }
 
-      @when<FactorialState>((_, machine) => machine.history.tick <= 5)
-      reportExternalCounter(s: FactorialState) {
-        return { externalCounter:  null };
-      }
-
-      @when<FactorialState>(state => state.externalCounter <= 5)
-      incrementOncePerTick(s: FactorialState) {
+      @when<FactorialState, FactorialInputs>(state => state.externalCounter <= 5 && state.externalCounter > 0)
+      incrementalFactorial(s: StateObject<FactorialState, FactorialInputs>) {
         return { currentValue: s.currentValue * s.externalCounter };
       }
 
     }
 
-    const test = new FactorialMachine();
-    const result = test.run();
+    const inputSource = new FactorialInputs();
 
-    expect(result).toBeTruthy();
-    expect(result).toHaveProperty('currentValue', 120);
+    const test = new FactorialMachine(inputSource);
+
+    do {
+      inputSource.update();
+    } while (test.step());
+
+
+    expect(test.exitState).toBeTruthy();
+    expect(test.exitState).toHaveProperty('externalCounter', inputSource.internalCounter - 1);
+    expect(test.exitState).toHaveProperty('currentValue', 120);
+  });
+
+  it('@input policies work', () => {
+
+    interface IBlankMachineInputs {
+      fixed: number;
+      increments: number;
+      random: number;
+    }
+
+    type BlankState = {
+      tick: number;
+    };
+
+    class BlankMachine extends StateMachine<BlankState, IBlankMachineInputs> {
+
+      constructor(inputSource: IBlankMachineInputs) {
+        super({ tick: 0 }, inputSource);
+      }
+
+      @when<BlankState>(true)
+      keepMe(_, m: BlankMachine) {
+        return { tick: m.history.tick };
+      }
+
+      @when((_, m) => m.history.tick > 5)
+      exitMachine(_, m: BlankMachine) {
+        m.exit();
+      }
+    }
+
+    class BlankMachineInputs implements IBlankMachineInputs {
+
+      private _fixed = 10;
+      private _increments = 0;
+      private _random = 0;
+
+      // polled once at startup.
+      @input<BlankState, IBlankMachineInputs>('once')
+      get fixed() {
+        return this._fixed;
+      }
+
+      // polled every other time and once at the beginning
+      @input<BlankState, IBlankMachineInputs>(
+        (_, m) => m.history.tick % 2 === 0
+      )
+      get increments() {
+        return this._increments;
+      }
+
+      // polled with every tick.
+      @input<BlankState, IBlankMachineInputs>('always')
+      get random() {
+        return this._random;
+      }
+
+      snapshot(tick: number) {
+        return {
+          tick,
+          fixed: this._fixed,
+          increments: this._increments,
+          random: this._random
+        };
+      }
+
+      seed() {
+        this._random = Math.round(Math.random() * 1000);
+      }
+
+      update(tick: number): StateObject<BlankState, IBlankMachineInputs> {
+        let old = this.snapshot(tick);
+        this._fixed = 10;
+        this._increments++;
+        this._random = Math.round(Math.random() * 1000);
+        if (old.tick % 2 !== 0) old.increments = old.increments === 0 ?  0 : old.increments - 1;
+        return { ...old, tick };
+      }
+    }
+
+    const inputSource = new BlankMachineInputs();
+    const expectedHistory: StateObject<BlankState, IBlankMachineInputs>[] = [];
+    const test = new BlankMachine(inputSource);
+
+    expectedHistory.push(inputSource.snapshot(0)); // initial state
+
+    inputSource.seed();
+
+    expectedHistory.push(inputSource.snapshot(1));
+
+    while (test.step()) {
+      expectedHistory.push(inputSource.update(test.history.tick));
+    }
+
+    // On the last tick, the handler won't fire and update the tick.
+    expectedHistory[expectedHistory.length -1].tick--;
+
+    expect(test.history.records).toEqual(expectedHistory);
   });
 
 });
