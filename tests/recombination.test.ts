@@ -53,7 +53,7 @@ describe('Recombination', () => {
     const testA = new TestMachineA();
     const testB = new TestMachineB();
     const testC = testA.recombine(testB);
-    expect(testC).toBeInstanceOf(new StateMachine<StateA & StateB>({} as any).constructor);
+    expect(testC).toBeInstanceOf(StateMachine);
     const resultC = testC.run();
     expect(resultC).toEqual({ valueA: 'a'.repeat(5), valueB: 'b'.repeat(10) });
   });

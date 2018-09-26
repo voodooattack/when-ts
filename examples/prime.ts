@@ -9,14 +9,27 @@
  * and time spent finding every individual prime.
  */
 
-import { MachineState, StateMachine, when } from '../src';
+import { input, MachineState, StateMachine, StateObject, when } from '../src';
+
+interface IPrimeInputSource {
+  // total number of primes to find in a given run (readonly)
+  readonly numberOfPrimes: number;
+}
+
+class PrimeInputSource implements IPrimeInputSource {
+  @input<PrimeState, PrimeState>('once')
+  public readonly numberOfPrimes: number = 10;
+
+  constructor(numberOfPrimes: number = 10)
+  {
+    this.numberOfPrimes = numberOfPrimes;
+  }
+}
 
 /**
  * This state object defines the variables this machine will use for its state.
  */
 interface PrimeState extends MachineState {
-  // total number of primes to find in a given run (readonly)
-  readonly numberOfPrimes: number;
   // the current number being checked in any given `tick`
   counter: number;
   // number to start counting from
@@ -31,24 +44,24 @@ interface PrimeState extends MachineState {
  * A simple state machine for brute-forcing primes.
  */
 class PrimeMachine extends StateMachine<PrimeState> {
-  constructor(public readonly numberOfPrimes: number) {
+  constructor(inputSource: PrimeInputSource) {
     // pass the initial state to the StateMachine
-    super({ counter: 2, current: 3, primes: [2], numberOfPrimes, times: [0] });
+    super({ counter: 2, current: 3, primes: [2], times: [0] }, inputSource);
   }
 
   // increment the counter with every tick
-  @when<PrimeState>(state => state.counter < state.current)
+  @when<PrimeState, IPrimeInputSource>(state => state.counter < state.current)
   // this inhibit cause execution to end when we've found the required number of primes
     .unless(state => state.primes.length >= state.numberOfPrimes)
-  incrementCounterOncePerTick({ counter }: PrimeState) {
+  incrementCounterOncePerTick({ counter }: StateObject<PrimeState, IPrimeInputSource>) {
     return { counter: counter + 1 };
   }
 
   // this will only be triggered if the current number fails the prime check
-  @when<PrimeState>(
+  @when<PrimeState, IPrimeInputSource>(
     state => state.counter < state.current && state.current % state.counter === 0)
     .unless(state => state.primes.length >= state.numberOfPrimes)
-  resetNotPrime({ current }: PrimeState) {
+  resetNotPrime({ current }: StateObject<PrimeState, IPrimeInputSource>) {
     return {
       counter: 2, // reset the counter
       current: current + 1 // skip this number
@@ -56,9 +69,9 @@ class PrimeMachine extends StateMachine<PrimeState> {
   }
 
   // this will only be triggered when all checks have passed (the number is a confirmed prime)
-  @when<PrimeState>(state => state.counter === state.current)
+  @when<PrimeState, IPrimeInputSource>(state => state.counter === state.current)
     .unless(state => state.primes.length >= state.numberOfPrimes)
-  capturePrime({ primes, current, times }: PrimeState, { history }: PrimeMachine) {
+  capturePrime({ primes, current, times }: StateObject<PrimeState, IPrimeInputSource>, { history }: PrimeMachine) {
     return {
       counter: 2, // reset the counter
       current: current + 1, // increment the target
@@ -71,13 +84,13 @@ class PrimeMachine extends StateMachine<PrimeState> {
 // obtain the supplied count or default to 10
 const count = process.argv[2] ? parseInt(process.argv[2], 10) : 10;
 // crate an instance of the prime machine
-const primeMachine = new PrimeMachine(count);
+const primeMachine = new PrimeMachine(new PrimeInputSource(count));
 // let it execute to a conclusion
 const result = primeMachine.run();
 
 if (result) {
   // number of primes
-  console.log(`N = ${primeMachine.numberOfPrimes}`);
+  console.log(`N = ${count}`);
   // total execution time
   console.log(
     `O(N) = ${primeMachine.history.tick} ticks`
