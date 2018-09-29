@@ -151,8 +151,9 @@ Action decorators may only precede a `when` block, and will only apply to that b
   
 ```typescript
 // maximum number of primes to brute-force before exiting, 
-// note that this variable is a readonly external input
-@input('maxPrimes') 
+// note that this variable is a readonly external input, 
+// and is read only once on startup.
+@input('once') 
 const maxPrimes: number = 10; 
 
 let counter = 2; // starting counting up from 2
