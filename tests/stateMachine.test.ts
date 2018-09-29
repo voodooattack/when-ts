@@ -182,6 +182,7 @@ describe('StateMachine', () => {
     const test = new TestMachine();
     const result = test.run(true);
 
+    expect(result).toEqual({ value: 3 });
     expect(series).toEqual([[0, 1], [1, 2], [2, 3], [3, 4], [1, 2], [2, 3], [3, 4]]);
 
   });
@@ -503,12 +504,12 @@ describe('StateMachine', () => {
       }
 
       @when<BlankState>(true)
-      keepMe(_, m: BlankMachine) {
+      keepMe(_: any, m: BlankMachine) {
         return { tick: m.history.tick };
       }
 
-      @when((_, m) => m.history.tick > 5)
-      exitMachine(_, m: BlankMachine) {
+      @when<BlankState>((_, m) => m.history.tick > 5)
+      exitMachine(_: any, m: BlankMachine) {
         m.exit();
       }
     }
