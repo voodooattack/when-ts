@@ -1,5 +1,5 @@
-import { actionMetadataKey, inputMetadataKey } from './actionMetadataKey';
-import { inhibitedBy, InputPolicy, MachineInputSource, StateMachine, unless, when } from './index';
+import { actionMetadataKey, inputMetadataKey } from './metadataKeys';
+import { inhibitedBy, InputPolicy, MachineInputSource, priority, StateMachine, unless, when } from './index';
 import { ActivationCond } from './interfaces';
 
 /** @ignore */
@@ -37,13 +37,14 @@ export function getInheritanceTree<T>(entity: ConstructorOf<T>): Function[] {
 
 /** @ignore */
 export type ConditionBuilder<S, I> = {
-  (T: any, methodName: string | symbol, descriptor: PropertyDescriptor): ActivationCond<S, I>
+  (T: any, methodName: string | symbol, descriptor: PropertyDescriptor): ActivationCond<S, I> | void
 }
 
 export type WhenDecoratorChainResult<S, I> = {
   andWhen(cond: ActivationCond<S, I> | true): WhenDecoratorWithChain<S, I>;
   unless(condition: ActivationCond<S, I>): WhenDecoratorWithChain<S, I>;
   inhibitedBy<M>(inhibitor: keyof M): WhenDecoratorWithChain<S, I>;
+  priority(p: number): WhenDecoratorWithChain<S, I>;
 }
 export type WhenDecoratorWithChain<S, I> = MethodDecorator & WhenDecoratorChainResult<S, I>;
 
@@ -55,14 +56,15 @@ export function chainWhen<S, I>(chainedHistory: ConditionBuilder<S, I>[]): WhenD
     {
       andWhen: (...args: any[]) => (when as any)(...args, chainedHistory),
       unless: (...args: any[]) => (unless as any)(...args, chainedHistory),
-      inhibitedBy: (...args: any[]) => (inhibitedBy as any)(...args, chainedHistory)
+      inhibitedBy: (...args: any[]) => (inhibitedBy as any)(...args, chainedHistory),
+      priority: (...args: any[]) => (priority as any)(...args, chainedHistory),
     }
   );
 }
 
 /**
  * Build a decorator out of a list of conditions.
- * @param {ActivationCond<S>[]} builders
+ * @param {ActivationCond[]} builders
  * @param {boolean} invert
  * @return {(_: any, _methodName: (string | symbol), descriptor: PropertyDescriptor) => void}
  */
@@ -70,7 +72,8 @@ export function chainWhen<S, I>(chainedHistory: ConditionBuilder<S, I>[]): WhenD
 function buildDecorator<S, I>(builders: ConditionBuilder<S, I>[]) {
   return function decorator(Type: any, methodName: string | symbol, descriptor: PropertyDescriptor)
   {
-    const built = builders.map(builder => builder(Type, methodName, descriptor));
+    const built = builders.map(builder => builder(Type, methodName, descriptor))
+      .filter(cond => typeof cond === 'function');
     const cond = built.length > 1 ? function () {
       for (let current of built) {
         // tell TS to ignore the next line because we specifically want a non-contextual `this`

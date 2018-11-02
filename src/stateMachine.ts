@@ -1,4 +1,4 @@
-import { actionMetadataKey, inputMetadataKey } from './actionMetadataKey';
+import { actionMetadataKey, inputMetadataKey, priorityMetadataKey } from './metadataKeys';
 import { HistoryManager } from './historyManager';
 import { ActivationAction, ActivationCond, MachineInputSource, MachineState } from './index';
 import { IHistory } from './interfaces';
@@ -40,12 +40,17 @@ export class StateMachine<S extends MachineState, I extends MachineInputSource =
    */
   protected constructor(initialState: S, inputSource?: I) {
     const properties = getAllMethods(this);
+    const program: [ActivationCond<S, I>, any, number][] = [];
     for (let m of properties) {
       if (Reflect.hasMetadata(actionMetadataKey, m)) {
         const cond = Reflect.getMetadata(actionMetadataKey, m);
-        this._program.set(cond, m as any);
+        const priority = Reflect.getMetadata(priorityMetadataKey, m);
+        program.push([cond, m, typeof priority === 'number' ? priority : 0]);
       }
     }
+    this._program = new Map(
+      program.sort(([,,a], [,,b]) => a - b) as any
+    );
     this._history = new HistoryManager<S, I, this>(this, initialState, inputSource,
       inputSource ? Reflect.getMetadata(inputMetadataKey, inputSource) : []
     );

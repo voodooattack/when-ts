@@ -1,12 +1,16 @@
 language: nodejs
 
-node_js: 8.12.0
+node_js:
+  - "8.12.0"
+  - "10.13.0"
 
 cache:
   directories:
   - node_modules
 
 before_script:
+- nvm install stable
+- nvm use stable
 - npm install
 - npm run build
 
