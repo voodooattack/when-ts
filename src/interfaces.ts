@@ -43,6 +43,13 @@ export type ActivationAction<State extends MachineState, InputSource extends Mac
   (state: Readonly<State & InputSource>, machine: StateMachine<State, InputSource>)
     => Pick<State, fields> | void;
 
+/**
+ * An activation condition, takes two arguments and must return true for the associated action to fire.
+ */
+export type PriorityExpression<State extends MachineState, InputSource extends MachineInputSource> =
+  (state: Readonly<State & InputSource>, machine: StateMachine<State, InputSource>) => number;
+
+
 
 /**
  * The HistoryManager interface allows for state manipulation and the rewinding of a program.

@@ -1,6 +1,6 @@
 {
   "name": "when-ts",
-  "version": "1.0.0-alpha.4",
+  "version": "1.0.0-alpha.5",
   "description": "When: A software design pattern for building event-based recombinant state machines.",
   "main": "dist/lib/src/index.js",
   "types": "dist/types/src/index.d.ts",
@@ -31,7 +31,7 @@
     "tslint": "^5.10.0",
     "tslint-config-prettier": "^1.13.0",
     "tslint-config-standard": "^8.0.1",
-    "typedoc": "^0.12.0",
+    "typedoc": "^0.13.0",
     "typescript": "^3.0.3"
   },
   "peerDependencies": {

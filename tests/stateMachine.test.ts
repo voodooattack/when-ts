@@ -182,6 +182,7 @@ describe('StateMachine', () => {
     const test = new TestMachine();
     const result = test.run(true);
 
+    expect(result).toEqual({ value: 3 });
     expect(series).toEqual([[0, 1], [1, 2], [2, 3], [3, 4], [1, 2], [2, 3], [3, 4]]);
 
   });
@@ -503,12 +504,12 @@ describe('StateMachine', () => {
       }
 
       @when<BlankState>(true)
-      keepMe(_, m: BlankMachine) {
+      keepMe(_: any, m: BlankMachine) {
         return { tick: m.history.tick };
       }
 
-      @when((_, m) => m.history.tick > 5)
-      exitMachine(_, m: BlankMachine) {
+      @when<BlankState>((_, m) => m.history.tick > 5)
+      exitMachine(_: any, m: BlankMachine) {
         m.exit();
       }
     }
@@ -581,5 +582,52 @@ describe('StateMachine', () => {
 
     expect(test.history.records).toEqual(expectedHistory);
   });
+
+  it('Can handle priorities', () => {
+
+    type State = {
+      value: number;
+    }
+
+    class TestMachine extends StateMachine<State> {
+      constructor() {
+        super({ value: 0 });
+      }
+
+      @when<State>(state => Math.abs(state.value) >= 5)
+      exitWhenDone(_: State, m: TestMachine) {
+        // this should execute on tick 6
+        expect(m.history.tick).toEqual(6);
+        m.exit();
+      }
+
+
+      // overrides the increment action via priority
+      @when<State>(state => state.value > -5).priority(10)
+      decrementOncePerTick(s: State) {
+        return { value: s.value - 1 };
+      }
+
+      @when<State>(state => state.value < 5)
+      incrementOncePerTick(s: State) {
+        return { value: s.value + 1 };
+      }
+
+      update(tick: number): StateObject<BlankState, IBlankMachineInputs> {
+        let old = this.snapshot(tick);
+        this._fixed = 10;
+        this._increments++;
+        this._random = Math.round(Math.random() * 1000);
+        if (old.tick % 2 !== 0) old.increments = old.increments === 0 ?  0 : old.increments - 1;
+        return { ...old, tick };
+      }
+    }
+
+    const test = new TestMachine();
+    const result = test.run();
+
+    expect(result).toEqual({ value: -5 });
+  });
+
 
 });
