@@ -1,6 +1,6 @@
 import 'reflect-metadata';
-import { actionMetadataKey, inputMetadataKey } from './actionMetadataKey';
-import { ActivationCond, InputPolicy, MachineInputSource, MachineState } from './interfaces';
+import { actionMetadataKey, inputMetadataKey, priorityMetadataKey } from './metadataKeys';
+import { ActivationCond, InputPolicy, MachineInputSource, MachineState, PriorityExpression } from './interfaces';
 import { StateMachine } from './stateMachine';
 import { chainWhen, ConditionBuilder, ConstructorOf, InputMapping, WhenDecoratorWithChain } from './util';
 
@@ -111,5 +111,19 @@ export function input<S extends MachineState, I extends MachineInputSource,
   };
 }
 
-export type StateObject<S extends MachineState, I extends MachineInputSource = any> =
-  S & Readonly<I>;
+export function priority<
+  S extends MachineState, I extends MachineInputSource = any,
+  M extends StateMachine<S, I> = any>
+(
+  priority: number| PriorityExpression<S, I>,
+  chainedHistory: ConditionBuilder<S, I>[] = []
+): WhenDecoratorWithChain<S, I> {
+  function definePriority(_: ConstructorOf<M>, __: string | symbol, descriptor: PropertyDescriptor) {
+    Reflect.defineMetadata(priorityMetadataKey, priority, descriptor.value);
+  }
+  return chainWhen<S, I>([definePriority, ...chainedHistory]);
+}
+
+export type StateObject<
+  S extends MachineState,
+  I extends MachineInputSource = any> = S & Readonly<I>;

@@ -121,8 +121,6 @@ When both traits are present in a single machine, the NPC will potentially exhib
 
 Here are some abstract syntax examples for a full pseudo-language based on this pattern. In this theoretical language, the program itself is a state machine, variables of the `MachineState` are global variables, and all of the primitives described above are part of the language itself.
 
-You can read about the original idea (slightly outdated) [in this proposal](https://gist.github.com/voodooattack/ccb1d18112720a8de5be660dbb80541c).
-
 This is mostly pseudo-javascript with two extra `when` and `exit` keywords, and using a hypothetical decorator syntax to specify action metadata. 
 
 The decorators are completely optional, and the currently proposed ones are:
@@ -137,7 +135,7 @@ Action decorators may only precede a `when` block, and will only apply to that b
 
 - `@inhibitedBy(action_name)` Prevents this action from triggering if another by `action_name` will execute during this tick. Can be used multiple times with the same action and different inhibitors.
 
-- `@priority(number)` Sets a numeric priority for the action. This will influence the order of evaluation inside the main loop. Actions with higher priority values are evaluated last, meaning that they will take precedence if there's a conflict from multiple actions trying to update the same variable during the same tick.    
+- `@priority(expression)` Sets a priority for the action. (Default is 0) This will influence the order of evaluation inside the main loop. Actions with lower priority values are evaluated last, while actions with higher priority values are evaluated first, meaning that they will take precedence if there's a conflict from multiple actions trying to update the same variable during the same tick. Can be a literal numeric value or an expression that returns a signed numeric value.
 
 ##### Control decorators:
 
