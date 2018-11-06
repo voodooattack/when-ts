@@ -11,7 +11,7 @@
 
 **The latest version of this README can be found in the [`devel` branch](https://github.com/voodooattack/when-ts/blob/devel/README.md), please read the spec there if that's what you're after.** 
 
-The spec for the abstract syntax and the design pattern itself can be found in [the spec/ subdirectory](spec/when.md). Please read the specs before delving into the implementation itself to get a good understanding of how things work``.
+The spec for the abstract syntax and the design pattern itself can be found in [the spec/ subdirectory](spec/when.md). Please read the specs before delving into the implementation itself to get a good understanding of how things work.
 
 This is a reference implementation for a new software design pattern that allows for composable event-based state machines with complete (including temporal) control over the state.
 
