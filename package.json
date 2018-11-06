@@ -1,6 +1,6 @@
 {
   "name": "when-ts",
-  "version": "1.0.0-alpha.5",
+  "version": "1.0.0",
   "description": "When: A software design pattern for building event-based recombinant state machines.",
   "main": "dist/lib/src/index.js",
   "types": "dist/types/src/index.d.ts",
@@ -13,7 +13,7 @@
     "prepublish": "npm run build && npm run typedoc && npm run test",
     "test": "jest --coverage",
     "test:coveralls": "cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js",
-    "commit": "git-cz"
+    "commit": "npm run lint && git-cz"
   },
   "engines": {
     "node": ">=8.12.0"

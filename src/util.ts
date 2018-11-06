@@ -1,5 +1,14 @@
 import { actionMetadataKey, inputMetadataKey } from './metadataKeys';
-import { inhibitedBy, InputPolicy, MachineInputSource, priority, StateMachine, unless, when } from './index';
+import {
+  inhibitedBy,
+  InputPolicy,
+  MachineInputSource,
+  priority,
+  PriorityExpression,
+  StateMachine,
+  unless,
+  when
+} from './index';
 import { ActivationCond } from './interfaces';
 
 /** @ignore */
@@ -44,7 +53,7 @@ export type WhenDecoratorChainResult<S, I> = {
   andWhen(cond: ActivationCond<S, I> | true): WhenDecoratorWithChain<S, I>;
   unless(condition: ActivationCond<S, I>): WhenDecoratorWithChain<S, I>;
   inhibitedBy<M>(inhibitor: keyof M): WhenDecoratorWithChain<S, I>;
-  priority(p: number): WhenDecoratorWithChain<S, I>;
+  priority(p: number|PriorityExpression<S, I>): WhenDecoratorWithChain<S, I>;
 }
 export type WhenDecoratorWithChain<S, I> = MethodDecorator & WhenDecoratorChainResult<S, I>;
 

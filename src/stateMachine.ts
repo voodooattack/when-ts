@@ -1,7 +1,7 @@
-import { actionMetadataKey, inputMetadataKey, priorityMetadataKey } from './metadataKeys';
 import { HistoryManager } from './historyManager';
-import { ActivationAction, ActivationCond, MachineInputSource, MachineState } from './index';
+import { ActivationAction, ActivationCond, MachineInputSource, MachineState, PriorityExpression } from './index';
 import { IHistory } from './interfaces';
+import { actionMetadataKey, inputMetadataKey, priorityMetadataKey } from './metadataKeys';
 import { getAllMethods, InputOf, StateOf } from './util';
 
 export type StateCombiner<M1 extends StateMachine<S1, I1>,
@@ -19,6 +19,12 @@ export type StateCombiner<M1 extends StateMachine<S1, I1>,
     ): (S1 & S2)
   };
 
+export type ProgramEntry<S extends MachineState, I extends MachineInputSource> =
+  {
+    action: ActivationAction<S, I, any>;
+    priority: number | PriorityExpression<S, I>;
+  }
+
 /**
  * Your state machine should inherit the `StateMachine<YourStateInterface>` class.
  */
@@ -28,8 +34,7 @@ export class StateMachine<S extends MachineState, I extends MachineInputSource =
    * @type {Map}
    * @private
    */
-  private _program: Map<ActivationCond<S, I>,
-    ActivationAction<S, I, any>> = new Map();
+  private _program: Map<ActivationCond<S, I>, ProgramEntry<S, I>> = new Map();
   private readonly _history: HistoryManager<S, I, this>;
   private _exitState?: Readonly<S & I>;
 
@@ -39,18 +44,14 @@ export class StateMachine<S extends MachineState, I extends MachineInputSource =
    * @param inputSource Machine inputs.
    */
   protected constructor(initialState: S, inputSource?: I) {
-    const properties = getAllMethods(this);
-    const program: [ActivationCond<S, I>, any, number][] = [];
-    for (let m of properties) {
-      if (Reflect.hasMetadata(actionMetadataKey, m)) {
-        const cond = Reflect.getMetadata(actionMetadataKey, m);
-        const priority = Reflect.getMetadata(priorityMetadataKey, m);
-        program.push([cond, m, typeof priority === 'number' ? priority : 0]);
+    const properties: ActivationAction<S, I, any>[] = getAllMethods(this) as any;
+    for (let action of properties) {
+      if (Reflect.hasMetadata(actionMetadataKey, action)) {
+        const cond = Reflect.getMetadata(actionMetadataKey, action);
+        const priority = Reflect.getMetadata(priorityMetadataKey, action);
+        this._program.set(cond, { priority, action });
       }
     }
-    this._program = new Map(
-      program.sort(([,,a], [,,b]) => a - b) as any
-    );
     this._history = new HistoryManager<S, I, this>(this, initialState, inputSource,
       inputSource ? Reflect.getMetadata(inputMetadataKey, inputSource) : []
     );
@@ -64,7 +65,7 @@ export class StateMachine<S extends MachineState, I extends MachineInputSource =
     return this._exitState;
   }
 
-  get history(): IHistory<S> {
+  get history(): IHistory<S, I> {
     return this._history;
   }
 
@@ -74,19 +75,41 @@ export class StateMachine<S extends MachineState, I extends MachineInputSource =
    */
   step() {
     let fired = 0;
-    if(this.history.tick < 1)
+    if (this.history.tick < 1) {
       this._history._nextTick();
+    }
     const currentTick = this.history.tick;
-    for (let [cond, body] of this._program) {
+    const currentState = this.history.currentState;
+    // let actions: [ActivationCond<S, I>, ProgramEntry<I, S>][] = [];
+    // for(let [key, entry] of this._program) {
+    //   const priority = (typeof entry.priority === 'number' ?
+    //     entry.priority : entry.priority(currentState, this)) || 0;
+    //   actions.splice(priority, 0, [key, entry]);
+    // }
+    let actions =
+          Array.from(this._program.entries())
+            .map(([cond, entry]) =>
+              ({
+                cond,
+                entry: {
+                  action: entry.action,
+                  priority: (typeof entry.priority === 'function' ?
+                    entry.priority(currentState, this) : entry.priority) || 0
+                }
+              })
+            )
+            .sort(({ entry: { priority: p1 } }, { entry: { priority: p2 } }) => p1 - p2);
+    for (let { cond, entry: { action } } of actions) {
       if (this.history.tick !== currentTick && !this.exitState) {
         // abort current tick on rewind.
         // always report at least 1 action fired in this case.
         return Math.max(1, fired);
       }
-      if (this.exitState)
+      if (this.exitState) {
         break;
+      }
       if (cond.call(this, this.history.currentState, this)) {
-        const newState = body.call(this, this.history.currentState, this);
+        const newState = action.call(this, this.history.currentState, this);
         if (newState) {
           this._history._mutateTick(newState);
         }
@@ -94,8 +117,9 @@ export class StateMachine<S extends MachineState, I extends MachineInputSource =
       }
     }
     this._history._nextTick();
-    if (fired === 0)
+    if (fired === 0) {
       this._exitState = this.history.currentState as any;
+    }
     return fired;
   }
 
