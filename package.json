@@ -1,6 +1,6 @@
 {
   "name": "when-ts",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "description": "When: A software design pattern for building event-based recombinant state machines.",
   "main": "dist/lib/src/index.js",
   "types": "dist/types/src/index.d.ts",
