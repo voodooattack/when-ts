@@ -608,9 +608,15 @@ describe('StateMachine', () => {
         return { value: s.value - 1 };
       }
 
-      @when<State>(state => state.value < 5)
+      @when<State>(state => state.value < 5).priority(-10)
       incrementOncePerTick(s: State) {
         return { value: s.value + 1 };
+      }
+
+      @when<State>((_, m) => m.history.tick > 4)
+        .priority(state => state.value % 2 === 0 ? 1000 : 0)
+      mul(s: State) {
+        return { value: s.value * 2 };
       }
 
     }
@@ -618,7 +624,7 @@ describe('StateMachine', () => {
     const test = new TestMachine();
     const result = test.run();
 
-    expect(result).toEqual({ value: -5 });
+    expect(result).toEqual({ value: -8 });
   });
 
 
