@@ -164,7 +164,7 @@ export class HistoryManager<S extends MachineState,
   }
 
   _nextTick() {
-    let nextState = this.nextState as Readonly<Partial<S> & I>;
+    let nextState = this.nextState;
     if (this.tick === 0)
       nextState = Object.assign(nextState, this._records.pop() || {}); // discard old tick 0
     this._records.push(nextState as any);

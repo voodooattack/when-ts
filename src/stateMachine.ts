@@ -94,7 +94,7 @@ export class StateMachine<S extends MachineState, I extends MachineInputSource =
                 entry: {
                   action: entry.action,
                   priority: (typeof entry.priority === 'function' ?
-                    entry.priority(currentState, this) : entry.priority) as number || 0
+                    entry.priority(currentState, this) : entry.priority) || 0
                 }
               })
             )
