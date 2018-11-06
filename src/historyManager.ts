@@ -19,7 +19,7 @@ export class HistoryManager<S extends MachineState,
   private _previousInputs: Partial<I> = {};
   private _maxHistory: number = Infinity;
   private _tick: number = 0;
-  private _nextState: Partial<S & Readonly<I>>;
+  private _nextState: Readonly<Partial<S> & I>;
   private _records: (S & Readonly<I>)[] = [];
 
   /**
@@ -164,7 +164,7 @@ export class HistoryManager<S extends MachineState,
   }
 
   _nextTick() {
-    let nextState = this.nextState as Readonly<S>;
+    let nextState = this.nextState as Readonly<Partial<S> & I>;
     if (this.tick === 0)
       nextState = Object.assign(nextState, this._records.pop() || {}); // discard old tick 0
     this._records.push(nextState as any);
