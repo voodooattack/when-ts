@@ -49,8 +49,6 @@ export type ActivationAction<State extends MachineState, InputSource extends Mac
 export type PriorityExpression<State extends MachineState, InputSource extends MachineInputSource> =
   (state: Readonly<State & InputSource>, machine: StateMachine<State, InputSource>) => number;
 
-
-
 /**
  * The HistoryManager interface allows for state manipulation and the rewinding of a program.
  */
@@ -59,7 +57,7 @@ export interface IHistory<S extends MachineState, I extends MachineInputSource =
   readonly records: ReadonlyArray<S & Readonly<I>>;
   readonly currentState: Readonly<S & I>;
   readonly initialState: Readonly<S>;
-  readonly nextState: Readonly<Partial<S>> & Readonly<I>;
+  readonly nextState: Readonly<Partial<S> & I>;
 
   /**
    * Limit the maximum number of past history states kept on record.
