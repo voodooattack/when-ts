@@ -1,19 +1,4 @@
 # When: recombinant event-based state machines.
- 
-## Features:
-
-- Discrete: if your actions only deal with the state object, then every state transition is 100% predictable.
-- Temporal: time can be rewound at any given moment (tick) by default, and the state machine will transition to a previously known state in time, along with any future information in the form of an optional state mutation to apply.
-- Recombinant: the pattern is based on [gene expression](https://en.wikipedia.org/wiki/Gene_expression), and since state machines are composed of events (`condition -> action` pairs) that are quite similar to how real genes are theorised to work (`activation region -> coding region`), this means that genetic recombination can be applied to `when` state machines by transferring new events from one machine to another. Mutating the machine (DNA) by transferring events (genes) from one machine to the other will introduce new behaviour.
-
-### Possible Proposals
-
-Here are some possible expansions on the idea. These require further discussion before they're mature enough to include:
-
-- Sexual reproduction of state machines: possible use of a similar mechanic to the one used in organic cells to combine two different programs (DNA) by randomly selecting an equal half of each.  
-- Mutation: Possible, but difficult since we can't swap code like basepairs. The simplest possible mutation would be a random swap of conditions between two randomly selected actions. 
-
-This would all lead to more emergent behaviour in agents produced by recombination.
 
 ### Pattern
 
