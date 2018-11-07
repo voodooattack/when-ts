@@ -11,7 +11,7 @@
 
 **The latest version of this README can be found in the [`devel` branch](https://github.com/voodooattack/when-ts/blob/devel/README.md), please read the spec there if that's what you're after.** 
 
-The spec for the abstract syntax and the design pattern itself can be found in [the spec/ subdirectory](spec/when.md). Please read the specs before delving into the implementation itself to get a good understanding of how things work.
+The spec for the abstract syntax and the design pattern itself can be found in [the spec subdirectory](spec/when.md). Please read the specs before delving into the implementation itself to get a good understanding of how things work.
 
 This is a reference implementation for a new software design pattern that allows for composable event-based state machines with complete (including temporal) control over the state.
 
@@ -99,36 +99,42 @@ interface IPrimeInputSource extends MachineInputSource {
 
 class PrimeInputSource implements IPrimeInputSource {
   @input('once') // mark as an input that's only read during startup.
-  public readonly primes: number;
+  public readonly maxPrimes: number;
   constructor(primes = 10) {
-    this.primes = primes;
+    this.maxPrimes = primes;
   }
 }
 
 class PrimeMachine extends StateMachine<PrimeState, IPrimeInputSource> {
   constructor(inputSource: IPrimeInputSource) {
+    // pass the initial state
     super({ counter: 2, current: 3, primes: [2] }, inputSource);
   }
 
+  // increment the counter with every tick
   @when<PrimeState, IPrimeInputSource>(state => state.counter < state.current)
+    .unless(state => state.primes.length >= state.maxPrimes)
   incrementCounterOncePerTick({ counter }: StateObject<PrimeState, IPrimeInputSource>) {
     return { counter: counter + 1 };
   }
 
   @when<PrimeState, IPrimeInputSource>(state => state.counter < state.current && state.current % state.counter === 0)
+    .unless(state => state.primes.length >= state.maxPrimes)
   resetNotPrime({ counter, primes, current }: StateObject<PrimeState, IPrimeInputSource>) {
     return { counter: 2, current: current + 1 };
   }
 
   @when<PrimeState, IPrimeInputSource>(state => state.counter >= state.current)
+    .unless(state => state.primes.length >= state.maxPrimes)
   capturePrime({ counter, primes, current }: StateObject<PrimeState, IPrimeInputSource>) {
     return { counter: 2, current: current + 1, primes: [...primes, current] };
   }
 
-  @when<PrimeState, IPrimeInputSource>(state => state.primes.length >= state.maxPrimes)
-  exitMachine(_, m: StateMachine<PrimeState>) {
-    m.exit();
-  }
+  // this explicit exit clause is not required because `unless` will cause the machine to implicitly exit above
+  //  @when<PrimeState, IPrimeInputSource>(state => state.primes.length >= state.maxPrimes)
+  //  exitMachine(_, m: StateMachine<PrimeState>) {
+  //    m.exit();
+  //  }
 }
 
 const inputSource = new PrimeInputSource(10);
@@ -139,6 +145,16 @@ const result = primeMachine.run();
 if (result)
   console.log(result!.primes);
 
+```
+
+Output: 
+
+```json
+{ 
+  "counter": 2,
+  "current": 30,
+  "primes": [ 2, 3, 5, 7, 11, 13, 17, 19, 23, 29 ]
+}
 ```
 
 ### Contributions
